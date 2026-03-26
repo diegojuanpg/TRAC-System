@@ -10,14 +10,6 @@ import NutritionForm from "./pages/NutritionForm.tsx";
 import Login from "./pages/Login.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
-const queryClient = new QueryClient();
-
-// Redirects unauthenticated users to /login
-const PrivateRoute = ({ children }: { children: JSX.Element }) => {
-  const { user } = useUser();
-  return user ? children : <Navigate to="/login" replace />;
-};
-
 const AppRoutes = () => (
   <BrowserRouter>
     <Routes>
@@ -25,7 +17,15 @@ const AppRoutes = () => (
       <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
       <Route path="/morning" element={<PrivateRoute><MorningSurvey /></PrivateRoute>} />
       <Route path="/nutrition" element={<PrivateRoute><NutritionForm /></PrivateRoute>} />
-      <Route path="*" element={<NotFound />} />
+      
+      {/* VERBOSE CATCH-ALL FOR DEBUGGING VERCEL */}
+      <Route path="*" element={
+        <div style={{ padding: 20, color: 'red', background: 'white' }}>
+          <h2>ROUTING ERROR</h2>
+          <p>Path not found: {window.location.pathname}</p>
+          <pre>{JSON.stringify(window.location, null, 2)}</pre>
+        </div>
+      } />
     </Routes>
   </BrowserRouter>
 );
