@@ -1,32 +1,63 @@
-import { useGoogleLogin } from "@react-oauth/google";
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
 import { DarkLayout } from "@/components/DarkLayout";
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
+
+// Google Identity Services is loaded via script tag in index.html
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 
 const Login = () => {
   const { setUser } = useUser();
   const navigate = useNavigate();
+  const clientRef = useRef<any>(null);
 
-  const login = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });
-        const profile = await res.json();
-        setUser({
-          email: profile.email,
-          name: profile.name,
-          picture: profile.picture,
-        });
-        navigate("/");
-      } catch (err) {
-        console.error("Error fetching user profile:", err);
-      }
-    },
-    onError: () => console.error("Google login failed"),
-  });
+  useEffect(() => {
+    // Wait for the GIS script to load (loaded in index.html)
+    const init = () => {
+      if (!window.google) return;
+      clientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: "openid email profile",
+        callback: async (response: any) => {
+          try {
+            const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: `Bearer ${response.access_token}` },
+            });
+            const profile = await res.json();
+            setUser({
+              email: profile.email,
+              name: profile.name,
+              picture: profile.picture,
+            });
+            navigate("/");
+          } catch (err) {
+            console.error("Error fetching user profile:", err);
+          }
+        },
+      });
+    };
+
+    if (window.google) {
+      init();
+    } else {
+      // Poll until GIS script is ready
+      const interval = setInterval(() => {
+        if (window.google) { clearInterval(interval); init(); }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [setUser, navigate]);
+
+  const handleLogin = () => {
+    clientRef.current?.requestAccessToken();
+  };
 
   return (
     <DarkLayout className="flex flex-col items-center justify-center px-5">
@@ -57,7 +88,7 @@ const Login = () => {
           className="w-full"
         >
           <button
-            onClick={() => login()}
+            onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-medium text-sm px-6 py-3.5 rounded-xl hover:bg-white/90 active:scale-[0.98] transition-all duration-150 shadow-lg shadow-black/20"
           >
             {/* Google logo SVG */}
