@@ -40,8 +40,7 @@ const NutritionForm = () => {
       await submit({
         email: user?.email ?? 'unknown',
         form_type: 'nutrition',
-        timestamp: new Date().toISOString(),
-        payload: data as unknown as Record<string, unknown>,
+        data: data as unknown as Record<string, unknown>,
       });
       setStatus('success');
     } catch (err) {

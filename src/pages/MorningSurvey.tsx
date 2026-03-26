@@ -85,8 +85,7 @@ const MorningSurvey = () => {
       await submit({
         email: user?.email ?? 'unknown',
         form_type: 'morning_survey',
-        timestamp: new Date().toISOString(),
-        payload: formData as Record<string, unknown>,
+        data: formData as Record<string, unknown>,
       });
     } catch (err) {
       console.error('Submit error:', err);
