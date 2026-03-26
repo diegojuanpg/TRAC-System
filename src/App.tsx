@@ -10,6 +10,14 @@ import NutritionForm from "./pages/NutritionForm.tsx";
 import Login from "./pages/Login.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
+const queryClient = new QueryClient();
+
+// Redirects unauthenticated users to /login
+const PrivateRoute = ({ children }: { children: JSX.Element }) => {
+  const { user } = useUser();
+  return user ? children : <Navigate to="/login" replace />;
+};
+
 const AppRoutes = () => (
   <BrowserRouter>
     <Routes>
