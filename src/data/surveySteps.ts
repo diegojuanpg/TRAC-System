@@ -19,22 +19,22 @@ export interface StepDefinition {
 
 export const STEPS: StepDefinition[] = [
   {
-    id: 'bodyweight', type: 'number', category: 'physiological metrics', question: 'Peso Corporal',
-    hint: 'Debes pesarte sin ropa, en ayunas y luego de ir al baño.',
-    unit: 'KG', placeholder: '78.5', min: 30, max: 250
-  },
-  {
     id: 'hrv', type: 'number', category: 'physiological metrics', question: 'HRV / VFC',
     hint: 'Acostado, en ayunas, y sin estimulantes.',
     unit: 'MS', placeholder: '55', min: 1, max: 300
+  },
+  {
+    id: 'ortho', type: 'ortho', category: 'physiological metrics', question: 'Test Ortostático',
+    hint: 'Medí la frecuencia cardíaca en cada fase del protocolo'
   },
   {
     id: 'tap', type: 'tap', category: 'physiological metrics', question: 'Tap Speed Test',
     hint: 'Brazo apoyado completamente sobre la mesa, a maxima intención'
   },
   {
-    id: 'ortho', type: 'ortho', category: 'physiological metrics', question: 'Test Ortostático',
-    hint: 'Medí la frecuencia cardíaca en cada fase del protocolo'
+    id: 'bodyweight', type: 'number', category: 'physiological metrics', question: 'Peso Corporal',
+    hint: 'Debes pesarte sin ropa, en ayunas y luego de ir al baño.',
+    unit: 'KG', placeholder: '78.5', min: 30, max: 250
   },
   {
     id: 'contexto', type: 'context', category: 'physiological metrics', question: 'Contexto del día',

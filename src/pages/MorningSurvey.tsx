@@ -80,6 +80,23 @@ const MorningSurvey = () => {
     goNext();
   };
 
+  const handleSkipToQuestions = () => {
+    // Drop all physiological fields to avoid partial dirty states
+    setFormData(prev => {
+      const n = { ...prev };
+      delete n.hrv;
+      delete n.hr1; delete n.hr2; delete n.hr3; delete n.hr4;
+      delete n.tap_total; delete n.tap_variance; delete n.tap_pauses;
+      delete n.bodyweight;
+      return n;
+    });
+    const targetIdx = STEPS.findIndex(s => s.id === 'contexto');
+    if (targetIdx !== -1) {
+      setDirection(1);
+      setCurrentStep(targetIdx);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       await submit({
@@ -199,6 +216,12 @@ const MorningSurvey = () => {
                 <Button variant="ghost" onClick={handleSkip} className="shrink-0 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground/50">
                   <SkipForward className="h-3.5 w-3.5 mr-1" />
                   Skip
+                </Button>
+              )}
+              {step?.id === 'hrv' && (
+                <Button variant="ghost" onClick={handleSkipToQuestions} className="shrink-0 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground/50 ml-1">
+                  <SkipForward className="h-3.5 w-3.5 mr-1" />
+                  Ir a Preguntas
                 </Button>
               )}
               <Button variant="nav" size="full" onClick={goNext} disabled={!isStepValid()} className="flex-1">
