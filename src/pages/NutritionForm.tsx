@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DarkLayout } from "@/components/DarkLayout";
 import { ChevronLeft, Send, Flame, Beef, Wheat, Droplets, Leaf, Footprints, Bike, Weight } from "lucide-react";
+import { useUser } from "@/context/UserContext";
+import { useSubmitToScript } from "@/hooks/useSubmitToScript";
 
 interface NutritionData {
   calories: string;
@@ -19,6 +21,8 @@ interface NutritionData {
 
 const NutritionForm = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const { submit } = useSubmitToScript();
   const [data, setData] = useState<NutritionData>({
     calories: '', protein: '', carbs: '', fat: '',
     fiber: '', water: '', steps: '', cardio: '', bodyweight: '',
@@ -29,13 +33,21 @@ const NutritionForm = () => {
     setData(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('saving');
-    setTimeout(() => {
-      console.log('Nutrition data:', data);
+    try {
+      await submit({
+        email: user?.email ?? 'unknown',
+        form_type: 'nutrition',
+        timestamp: new Date().toISOString(),
+        payload: data as unknown as Record<string, unknown>,
+      });
       setStatus('success');
-    }, 1000);
+    } catch (err) {
+      console.error('Submit error:', err);
+      setStatus('error');
+    }
   };
 
   return (

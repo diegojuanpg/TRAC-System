@@ -13,11 +13,15 @@ import { SurveySuccess } from "@/components/survey/SurveySuccess";
 import { DarkLayout } from "@/components/DarkLayout";
 import { ChevronLeft, ChevronRight, SkipForward } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@/context/UserContext";
+import { useSubmitToScript } from "@/hooks/useSubmitToScript";
 
 type Phase = 'intro' | 'steps' | 'summary' | 'success';
 
 const MorningSurvey = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const { submit } = useSubmitToScript();
   const [phase, setPhase] = useState<Phase>('intro');
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({});
@@ -76,8 +80,17 @@ const MorningSurvey = () => {
     goNext();
   };
 
-  const handleSubmit = () => {
-    console.log('Submitting:', formData);
+  const handleSubmit = async () => {
+    try {
+      await submit({
+        email: user?.email ?? 'unknown',
+        form_type: 'morning_survey',
+        timestamp: new Date().toISOString(),
+        payload: formData as Record<string, unknown>,
+      });
+    } catch (err) {
+      console.error('Submit error:', err);
+    }
     setPhase('success');
   };
 
