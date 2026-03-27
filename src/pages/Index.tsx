@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Activity, Utensils } from "lucide-react";
+import { ChevronRight, Activity, Utensils, LineChart } from "lucide-react";
 import { DarkLayout } from "@/components/DarkLayout";
 
 const Index = () => {
@@ -53,6 +53,23 @@ const Index = () => {
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-foreground/90 mb-0.5">Nutrition</div>
               <div className="text-xs text-muted-foreground leading-snug">Nutrición. Peso, calorías y macros.</div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 transition-colors shrink-0" />
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            onClick={() => navigate('/monitoring')}
+            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-center gap-4 text-left group hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300"
+          >
+            <div className="w-11 h-11 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0">
+              <LineChart className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Athlete Monitoring</div>
+              <div className="text-xs text-muted-foreground leading-snug">Dashboard de readiness y estado actual.</div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 transition-colors shrink-0" />
           </motion.button>

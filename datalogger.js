@@ -150,7 +150,28 @@ function doPost(e) {
 }
 
 function doGet(e) {
-    return ContentService.createTextOutput('TRAC Script B — OK').setMimeType(ContentService.MimeType.TEXT);
+    try {
+        const action = e.parameter.action;
+        const email = String(e.parameter.email || '').trim().toLowerCase();
+        const token = e.parameter.token;
+
+        if (!token || token !== SHARED_TOKEN) {
+            return jsonResponse({ success: false, error: 'Token inválido.' });
+        }
+
+        if (action === 'fetchDashboard') {
+            if (!email) return jsonResponse({ success: false, error: 'Email requerido.' });
+            const athleteSheetId = findAthleteSheetId(email);
+            if (!athleteSheetId) return jsonResponse({ success: false, error: 'Atleta no encontrado.' });
+            
+            const result = fetchDashboardData(athleteSheetId);
+            return jsonResponse({ success: true, data: result });
+        }
+
+        return ContentService.createTextOutput('TRAC Script B — GET OK').setMimeType(ContentService.MimeType.TEXT);
+    } catch (err) {
+        return jsonResponse({ success: false, error: err.message });
+    }
 }
 
 
@@ -793,6 +814,94 @@ function jsonResponse(obj) {
     return ContentService
         .createTextOutput(JSON.stringify(obj))
         .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// ══════════════════════════════════════════
+// FETCH DASHBOARD DATA (GET API)
+// ══════════════════════════════════════════
+
+function fetchDashboardData(ssId) {
+    const endCol = columnToLetter(CONFIG_TRAC.DB_COL_COUNT);
+    const hdrRange = "'" + CONFIG_TRAC.SHEET_TRAC_DB + "'!A" + CONFIG_TRAC.DB_HEADER_ROW + ":" + endCol + CONFIG_TRAC.DB_HEADER_ROW;
+    const dataRange = "'" + CONFIG_TRAC.SHEET_TRAC_DB + "'!A" + CONFIG_TRAC.DB_DATA_START_ROW + ":" + endCol + "5000";
+
+    const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
+    const rawHeaders = hdrResp.values ? hdrResp.values[0] : [];
+    const hMap = {};
+    rawHeaders.forEach((h, i) => { if (h) hMap[String(h).trim()] = i; });
+
+    const allDataResp = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
+    const allData = (allDataResp.values || []).filter(row => row[0] !== undefined && row[0] !== '');
+
+    if (allData.length === 0) return { error: 'No hay datos' };
+
+    // Get the last row
+    const lastRow = allData[allData.length - 1];
+    const prevRow = allData.length > 1 ? allData[allData.length - 2] : null;
+
+    // Helper to safely get value
+    const getVal = (row, colName, fallback = null) => {
+        const idx = hMap[colName];
+        if (idx === undefined || !row) return fallback;
+        const v = row[idx];
+        return (v === undefined || v === '') ? fallback : v;
+    };
+
+    // Últimos 7 días válidos para chart y barra
+    const last7Days = [];
+    const readinessTrend = [];
+    const startIdx = Math.max(0, allData.length - 14); // 14 for trend
+    for (let i = startIdx; i < allData.length; i++) {
+        const dateRaw = getVal(allData[i], 'Date');
+        // Convert serial date to string for client if it's a number
+        let dateStr = String(dateRaw);
+        if (typeof dateRaw === 'number') {
+            const dateObj = new Date((dateRaw - 25569) * 86400 * 1000);
+            dateStr = dateObj.toISOString().split('T')[0];
+        }
+
+        readinessTrend.push({
+            date: dateStr,
+            readiness: getVal(allData[i], 'Z-Readiness', 0)
+        });
+
+        if (i >= allData.length - 7) {
+            last7Days.push({
+                date: dateStr,
+                alertLevel: getVal(allData[i], 'Alert_Level', 0),
+                ansProfile: getVal(allData[i], 'ANS_Profile', 'INSUFFICIENT_DATA')
+            });
+        }
+    }
+
+    const currentHrv7d = getVal(lastRow, 'lnHRV_7d_mean', 0);
+    const prevHrv7d = prevRow ? getVal(prevRow, 'lnHRV_7d_mean', 0) : 0;
+    const hrvDelta = currentHrv7d - prevHrv7d;
+
+    return {
+        athleteName: ssId, // Mapped in client or later
+        date: getVal(lastRow, 'Date'),
+        alertLevel: getVal(lastRow, 'Alert_Level', 0),
+        ansProfile: getVal(lastRow, 'ANS_Profile', 'INSUFFICIENT_DATA'),
+        action: getVal(lastRow, 'TRAC_Action', ''),
+        readinessZ: getVal(lastRow, 'Z-Readiness', 0),
+        fatigueZ: getVal(lastRow, 'Fatigue', 0),
+        fitnessZ: getVal(lastRow, 'Fitness', 0),
+        hrv7d: currentHrv7d,
+        hrvDelta: hrvDelta,
+        stfLtfRatio: getVal(lastRow, 'STF_LTF_Ratio', 0),
+        stf: getVal(lastRow, 'STF', 0),
+        ltf: getVal(lastRow, 'LTF', 0),
+        soreness: {
+            push: getVal(lastRow, 'Push Soreness', 0),
+            pull: getVal(lastRow, 'Pull Soreness', 0),
+            legs: getVal(lastRow, 'Legs Soreness', 0),
+            injury: getVal(lastRow, 'Lesión/Molestia', 0)
+        },
+        readinessTrend,
+        last7Days
+    };
 }
 
 

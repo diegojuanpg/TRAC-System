@@ -9,6 +9,7 @@ import MorningSurvey from "./pages/MorningSurvey.tsx";
 import NutritionForm from "./pages/NutritionForm.tsx";
 import Login from "./pages/Login.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import MonitoringDashboard from "./pages/MonitoringDashboard.tsx";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const AppRoutes = () => (
       <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
       <Route path="/morning" element={<PrivateRoute><MorningSurvey /></PrivateRoute>} />
       <Route path="/nutrition" element={<PrivateRoute><NutritionForm /></PrivateRoute>} />
+      <Route path="/monitoring" element={<PrivateRoute><MonitoringDashboard /></PrivateRoute>} />
       
       {/* VERBOSE CATCH-ALL FOR DEBUGGING VERCEL */}
       <Route path="*" element={
