@@ -18,8 +18,8 @@ const getStateConfig = (level: number, ansProfile: string) => {
 };
 
 const getSorenessColor = (val: number) => {
-  if (val <= 2) return "bg-green-500/80 shadow-[0_0_10px_rgba(34,197,94,0.4)]";
-  if (val === 3) return "bg-yellow-500/80 shadow-[0_0_10px_rgba(234,179,8,0.4)]";
+  if (val <= 2.5) return "bg-green-500/80 shadow-[0_0_10px_rgba(34,197,94,0.4)]";
+  if (val <= 5.0) return "bg-yellow-500/80 shadow-[0_0_10px_rgba(234,179,8,0.4)]";
   return "bg-red-500/80 shadow-[0_0_10px_rgba(239,68,68,0.4)]";
 };
 
