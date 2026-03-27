@@ -59,7 +59,15 @@ export const useMonitoringData = () => {
           email: user.email,
         });
         
-        const res = await fetch(`${SCRIPT_URL}?${urlArgs.toString()}`);
+        const finalUrl = `${SCRIPT_URL}?${urlArgs.toString()}`;
+        
+        console.log("======= DEBUG FETCH DASHBOARD =======");
+        console.log("VITE_APPS_SCRIPT_URL que Vercel compiló:", SCRIPT_URL);
+        console.log("URL final generada:", finalUrl);
+        console.log("=====================================");
+        
+        const res = await fetch(finalUrl);
+        
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
