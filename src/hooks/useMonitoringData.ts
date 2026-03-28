@@ -7,6 +7,7 @@ const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
 export interface MonitoringData {
   athleteName: string;
   date: number | string;
+  measurementTime?: string;
   alertLevel: number;
   ansProfile: string;
   action: string;
@@ -42,7 +43,7 @@ export const useMonitoringData = () => {
         setLoading(false);
         return;
       }
-      
+
       if (!SCRIPT_URL) {
         setError("VITE_APPS_SCRIPT_URL not configured");
         setLoading(false);
@@ -52,26 +53,26 @@ export const useMonitoringData = () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const urlArgs = new URLSearchParams({
           action: 'fetchDashboard',
           token: SHARED_TOKEN,
           email: user.email,
         });
-        
+
         const finalUrl = `${SCRIPT_URL}?${urlArgs.toString()}`;
-        
+
         console.log("======= DEBUG FETCH DASHBOARD =======");
         console.log("VITE_APPS_SCRIPT_URL que Vercel compiló:", SCRIPT_URL);
         console.log("URL final generada:", finalUrl);
         console.log("=====================================");
-        
+
         const res = await fetch(finalUrl);
-        
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
-        
+
         const json = await res.json();
         if (json.success && json.data) {
           if (mounted) setData(json.data);

@@ -163,7 +163,7 @@ function doGet(e) {
             if (!email) return jsonResponse({ success: false, error: 'Email requerido.' });
             const athleteSheetId = findAthleteSheetId(email);
             if (!athleteSheetId) return jsonResponse({ success: false, error: 'Atleta no encontrado.' });
-            
+
             const result = fetchDashboardData(athleteSheetId);
             return jsonResponse({ success: true, data: result });
         }
@@ -882,6 +882,7 @@ function fetchDashboardData(ssId) {
     return {
         athleteName: ssId, // Mapped in client or later
         date: getVal(lastRow, 'Date'),
+        measurementTime: getVal(lastRow, 'Measurement_Time', ''),
         alertLevel: getVal(lastRow, 'Alert_Level', 0),
         ansProfile: getVal(lastRow, 'ANS_Profile', 'INSUFFICIENT_DATA'),
         action: getVal(lastRow, 'TRAC_Action', ''),

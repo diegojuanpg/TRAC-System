@@ -63,63 +63,83 @@ const MonitoringDashboard = () => {
     const stateConfig = getStateConfig(data.alertLevel, data.ansProfile);
 
     // Get max/min for the sparkline trend
-    const sorted = [...data.readinessTrend].sort((a,b) => a.readiness - b.readiness);
+    const sorted = [...data.readinessTrend].sort((a, b) => a.readiness - b.readiness);
     const minZ = sorted.length ? sorted[0].readiness - 0.5 : -3;
     const maxZ = sorted.length ? sorted[sorted.length - 1].readiness + 0.5 : 3;
     const range = maxZ - minZ;
 
     return (
       <div className="flex-1 overflow-y-auto pb-24 pt-20 px-5 space-y-8 max-w-md mx-auto w-full">
-        
-        {/* State Banner */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className={`w-full rounded-xl border ${stateConfig.border} ${stateConfig.bg} p-4 flex items-center justify-between backdrop-blur-sm`}
-        >
-          <div className={`font-mono font-bold tracking-[0.15em] text-sm ${stateConfig.color}`}>
-            {stateConfig.text}
-          </div>
-          <div className="font-mono text-xs text-white/60">
-            Z {(data.readinessZ > 0 ? "+" : "")}{data.readinessZ.toFixed(1)} σ
-          </div>
-        </motion.div>
 
-        {/* Primary Metrics */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
-          <div className="space-y-1">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Readiness</div>
-            <div className="text-2xl font-semibold tracking-tight text-white/90">
+        {/* Date and State */}
+        <div className="flex flex-col gap-3">
+          <div className="font-mono text-[10px] text-white/50 uppercase tracking-widest text-center">
+            {data.date} {data.measurementTime ? `· ${data.measurementTime}` : ''}
+          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className={`w-full rounded-xl border ${stateConfig.border} ${stateConfig.bg} p-3 flex items-center justify-center backdrop-blur-sm`}
+          >
+            <div className={`font-mono font-bold tracking-[0.15em] text-sm ${stateConfig.color}`}>
+              {stateConfig.text}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Primary Metrics: Readiness, Fatiga, Fitness */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden">
+          <div className="flex-[1.5] p-5 border-r border-white/5 bg-white/5 flex flex-col items-center justify-center relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">Readiness</div>
+            <div className="text-3xl font-bold tracking-tight text-white/95">
               {(data.readinessZ > 0 ? "+" : "")}{data.readinessZ.toFixed(1)}
             </div>
-            <div className="font-mono text-[9px] text-white/30 truncate">σ (Baseline)</div>
           </div>
-          <div className="space-y-1">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Fatiga</div>
-            <div className="text-2xl font-semibold tracking-tight text-white/90">
-              {zTo10(data.fatigueZ)}
+          <div className="flex-1 p-3 flex flex-col items-center justify-center border-r border-white/5">
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">Fatiga</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-semibold tracking-tight text-white/80">{zTo10(data.fatigueZ)}</span>
+              <span className="text-[9px] font-mono text-white/30">/10</span>
             </div>
-            <div className="font-mono text-[9px] text-white/30">/ 10</div>
           </div>
-          <div className="space-y-1">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Fitness</div>
-            <div className="text-2xl font-semibold tracking-tight text-white/90">
-              {zTo10(data.fitnessZ)}
+          <div className="flex-1 p-3 flex flex-col items-center justify-center">
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">Fitness</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-semibold tracking-tight text-white/80">{zTo10(data.fitnessZ)}</span>
+              <span className="text-[9px] font-mono text-white/30">/10</span>
             </div>
-            <div className="font-mono text-[9px] text-white/30">/ 10</div>
           </div>
         </motion.div>
 
-        {/* Secondary Metrics */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid grid-cols-2 gap-y-6 gap-x-4 pt-4 border-t border-white/5">
-          <div className="space-y-1">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">HRV 7d</div>
-            <div className="text-lg font-medium text-white/80">{data.hrv7d.toFixed(2)}</div>
-            <div className="font-mono text-[9px] text-green-400">Δ {(data.hrvDelta > 0 ? "+" : "")}{data.hrvDelta.toFixed(2)}</div>
+        {/* Separator */}
+        <div className="w-full h-px border-t border-dashed border-white/10" />
+
+        {/* Secondary Metrics: ACWR, STF, LTF, HRV */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden">
+          <div className="flex-[1.8] p-4 border-r border-white/5 bg-white/5 flex flex-col items-center justify-center relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">ACWR</div>
+            <div className="text-2xl font-bold tracking-tight text-white/95">
+              {data.stfLtfRatio.toFixed(2)}
+            </div>
           </div>
-          <div className="space-y-1">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">STF / LTF</div>
-            <div className="text-lg font-medium text-white/80">{data.stfLtfRatio.toFixed(2)}</div>
-            <div className="font-mono text-[9px] text-white/30">STF: {data.stf.toFixed(1)} | LTF: {data.ltf.toFixed(1)}</div>
+          <div className="flex-1 p-2 flex flex-col items-center justify-center border-r border-white/5">
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">STF</div>
+            <div className="text-base font-medium tracking-tight text-white/80">
+              {data.stf.toFixed(1)}
+            </div>
+          </div>
+          <div className="flex-1 p-2 flex flex-col items-center justify-center border-r border-white/5">
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">LTF</div>
+            <div className="text-base font-medium tracking-tight text-white/80">
+              {data.ltf.toFixed(1)}
+            </div>
+          </div>
+          <div className="flex-1 p-2 flex flex-col items-center justify-center relative">
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">HRV</div>
+            <div className="text-base font-medium tracking-tight text-white/80">
+              {data.hrv7d.toFixed(2)}
+            </div>
           </div>
         </motion.div>
 
@@ -129,10 +149,10 @@ const MonitoringDashboard = () => {
           <div className="flex items-center gap-2">
             {data.last7Days.slice(-7).map((day, i) => {
               const bg = day.ansProfile === 'INSUFFICIENT_DATA' ? 'bg-white/10' :
-                         day.alertLevel === 0 ? 'bg-green-500/20 text-green-400' :
-                         day.alertLevel === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-                         day.alertLevel === 2 ? 'bg-orange-500/20 text-orange-400' :
-                         'bg-red-500/20 text-red-400';
+                day.alertLevel === 0 ? 'bg-green-500/20 text-green-400' :
+                  day.alertLevel === 1 ? 'bg-yellow-500/20 text-yellow-400' :
+                    day.alertLevel === 2 ? 'bg-orange-500/20 text-orange-400' :
+                      'bg-red-500/20 text-red-400';
               const isToday = i === data.last7Days.length - 1;
               const dateObj = new Date(day.date);
               dateObj.setHours(dateObj.getHours() + 12); // Adjust timezone offset simply
@@ -149,17 +169,17 @@ const MonitoringDashboard = () => {
 
         {/* Recommendation */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="space-y-3 pt-4 border-t border-white/5">
-           <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Recomendación</div>
-           <div className={`text-sm leading-relaxed ${stateConfig.color} pl-3 border-l-2 ${stateConfig.border}`}>
-             {data.action || "Ninguna acción detectada. Entrena según sensaciones."}
-           </div>
+          <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Recomendación</div>
+          <div className={`text-sm leading-relaxed ${stateConfig.color} pl-3 border-l-2 ${stateConfig.border}`}>
+            {data.action || "Ninguna acción detectada. Entrena según sensaciones."}
+          </div>
         </motion.div>
 
         {/* Soreness Semaphores */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="space-y-4 pt-6 border-t border-white/5">
           <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Soreness / Injury</div>
           <div className="grid grid-cols-4 gap-2">
-            {[ 
+            {[
               { label: 'PUSH', val: data.soreness.push },
               { label: 'PULL', val: data.soreness.pull },
               { label: 'LEGS', val: data.soreness.legs },
@@ -181,9 +201,9 @@ const MonitoringDashboard = () => {
           </div>
           <div className="h-24 w-full relative">
             {/* Zero Line */}
-            <div className="absolute top-[50%] left-0 right-0 h-px bg-white/20 border-dashed" 
-                 style={{ top: `${((maxZ - 0) / range) * 100}%` }} />
-            
+            <div className="absolute top-[50%] left-0 right-0 h-px bg-white/20 border-dashed"
+              style={{ top: `${((maxZ - 0) / range) * 100}%` }} />
+
             {/* SVG Sparkline */}
             <svg viewBox={`0 0 100 100`} preserveAspectRatio="none" className="w-full h-full overflow-visible">
               <polyline
@@ -211,8 +231,8 @@ const MonitoringDashboard = () => {
     );
   };
 
-  const formattedDate = new Date().toLocaleDateString('es-ES', { 
-    weekday: 'short', day: 'numeric', month: 'short' 
+  const formattedDate = new Date().toLocaleDateString('es-ES', {
+    weekday: 'short', day: 'numeric', month: 'short'
   }).replace(',', ' ·');
 
   return (
