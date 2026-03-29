@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useMonitoringData } from "@/hooks/useMonitoringData";
 import { DarkLayout } from "@/components/DarkLayout";
 import { useUser } from "@/context/UserContext";
-import { motion } from "framer-motion";
-import { ChevronLeft, RefreshCw, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, RefreshCw, Activity, User, LineChart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Mapping Alert Level to colors and text
@@ -32,6 +33,7 @@ const MonitoringDashboard = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const { data, loading, error, refetch } = useMonitoringData();
+  const [viewMode, setViewMode] = useState<'athlete' | 'coach'>('athlete');
 
   if (!user) return null;
 
@@ -68,31 +70,85 @@ const MonitoringDashboard = () => {
     const maxZ = sorted.length ? sorted[sorted.length - 1].readiness + 0.5 : 3;
     const range = maxZ - minZ;
 
-    return (
-      <div className="flex-1 overflow-y-auto pb-24 pt-20 px-5 space-y-8 max-w-md mx-auto w-full">
-
-        {/* Date and State */}
-        <div className="flex flex-col gap-3">
-          <div className="font-mono text-[10px] text-white/50 uppercase tracking-widest text-center">
-            {data.date} {data.measurementTime ? `· ${data.measurementTime}` : ''}
+    const renderAthleteView = () => (
+      <div className="space-y-8">
+        {/* Big State */}
+        <div className={`w-full rounded-2xl border ${stateConfig.border} ${stateConfig.bg} p-8 flex flex-col items-center justify-center backdrop-blur-sm shadow-lg`}>
+          <span className="font-mono text-[10px] text-white/50 uppercase tracking-widest mb-3">Estado de Hoy</span>
+          <div className={`font-mono font-black tracking-widest text-3xl ${stateConfig.color}`}>
+            {stateConfig.text}
           </div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`w-full rounded-xl border ${stateConfig.border} ${stateConfig.bg} p-3 flex items-center justify-center backdrop-blur-sm`}
-          >
-            <div className={`font-mono font-bold tracking-[0.15em] text-sm ${stateConfig.color}`}>
-              {stateConfig.text}
-            </div>
-          </motion.div>
+        </div>
+
+        {/* Recommendation */}
+        <div className="space-y-3">
+          <div className="font-mono text-[10px] tracking-[0.1em] text-white/40 uppercase">Plan de Acción</div>
+          <div className={`text-lg font-medium leading-relaxed ${stateConfig.color} pl-4 border-l-4 ${stateConfig.border} bg-white/5 p-4 rounded-r-xl shadow-sm`}>
+            {data.action || "Ninguna acción detectada. Entrena según sensaciones."}
+          </div>
+        </div>
+
+        {/* Last 7 Days Blocks */}
+        <div className="space-y-3 pt-4 border-t border-white/5">
+          <div className="font-mono text-[10px] tracking-[0.1em] text-white/40 uppercase">Tu Semana</div>
+          <div className="flex items-center gap-2">
+            {data.last7Days.slice(-7).map((day, i) => {
+              const bg = day.ansProfile === 'INSUFFICIENT_DATA' ? 'bg-white/10' :
+                day.alertLevel === 0 ? 'bg-green-500/20 text-green-400' :
+                  day.alertLevel === 1 ? 'bg-yellow-500/20 text-yellow-400' :
+                    day.alertLevel === 2 ? 'bg-orange-500/20 text-orange-400' :
+                      'bg-red-500/20 text-red-400';
+              const isToday = i === data.last7Days.length - 1;
+              const dateObj = new Date(day.date);
+              dateObj.setHours(dateObj.getHours() + 12);
+              const dayName = isToday ? 'Hoy' : dateObj.toLocaleDateString('es-ES', { weekday: 'short' }).charAt(0).toUpperCase();
+
+              return (
+                <div key={i} className={`flex-1 flex items-center justify-center py-3 rounded-lg ${bg} ${isToday ? 'border-2 border-current shadow-md opacity-100 scale-[1.03] transition-transform' : 'opacity-60'}`}>
+                  <span className="font-mono text-[11px] uppercase font-bold">{dayName}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Soreness Semaphores */}
+        <div className="space-y-4 pt-4 border-t border-white/5 pb-6">
+          <div className="font-mono text-[10px] tracking-[0.1em] text-white/40 uppercase">Zonas de Atención</div>
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { label: 'PUSH', val: data.soreness.push },
+              { label: 'PULL', val: data.soreness.pull },
+              { label: 'LEGS', val: data.soreness.legs },
+              { label: 'INJURY', val: data.soreness.injury }
+            ].map((s, i) => (
+              <div key={i} className="flex flex-col items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 shadow-sm">
+                <span className="font-mono text-[10px] text-white/70 font-semibold">{s.label}</span>
+                <div className={`w-4 h-4 rounded-full ${getSorenessColor(s.val)}`} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    const renderCoachView = () => (
+      <div className="space-y-6 pb-8">
+        {/* Simple State Badge for Coach */}
+        <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5">
+          <span className="font-mono text-xs text-white/50 uppercase">Alerta Actual</span>
+          <div className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest ${stateConfig.bg} ${stateConfig.color} ${stateConfig.border} border`}>
+            {stateConfig.text}
+          </div>
         </div>
 
         {/* Primary Metrics: Readiness, Fatiga, Fitness */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden">
+        <div className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden shadow-sm">
           <div className="flex-[1.5] p-5 border-r border-white/5 bg-white/5 flex flex-col items-center justify-center relative">
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">Readiness</div>
-            <div className="text-3xl font-bold tracking-tight text-white/95">
-              {(data.readinessZ > 0 ? "+" : "")}{data.readinessZ.toFixed(1)}
+            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">Readiness (Z)</div>
+            <div className={`text-4xl font-bold tracking-tight ${(data.readinessZ < -1.5) ? 'text-red-400' : 'text-white/95'}`}>
+              {(data.readinessZ > 0 ? "+" : "")}{data.readinessZ.toFixed(2)}
             </div>
           </div>
           <div className="flex-1 p-3 flex flex-col items-center justify-center border-r border-white/5">
@@ -109,106 +165,52 @@ const MonitoringDashboard = () => {
               <span className="text-[9px] font-mono text-white/30">/10</span>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Separator */}
-        <div className="w-full h-px border-t border-dashed border-white/10" />
-
-        {/* Secondary Metrics: ACWR, STF, LTF, HRV */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden">
+        {/* Carga & Riesgo: ACWR, STF, LTF, HRV */}
+        <div className="flex justify-between items-center bg-white/5 rounded-xl border border-white/5 overflow-hidden shadow-sm">
           <div className="flex-[1.8] p-4 border-r border-white/5 bg-white/5 flex flex-col items-center justify-center relative">
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">ACWR</div>
-            <div className="text-2xl font-bold tracking-tight text-white/95">
+            <div className="font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase mb-1">ACWR (Risk)</div>
+            <div className={`text-3xl font-bold tracking-tight ${(data.stfLtfRatio > 1.5 || data.stfLtfRatio < 0.8) ? 'text-orange-400' : 'text-green-400'}`}>
               {data.stfLtfRatio.toFixed(2)}
             </div>
           </div>
           <div className="flex-1 p-2 flex flex-col items-center justify-center border-r border-white/5">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">STF</div>
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">STF (Aguda)</div>
             <div className="text-base font-medium tracking-tight text-white/80">
-              {data.stf.toFixed(1)}
+              {data.stf.toFixed(0)}
             </div>
           </div>
           <div className="flex-1 p-2 flex flex-col items-center justify-center border-r border-white/5">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">LTF</div>
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">LTF (Crónica)</div>
             <div className="text-base font-medium tracking-tight text-white/80">
-              {data.ltf.toFixed(1)}
+              {data.ltf.toFixed(0)}
             </div>
           </div>
           <div className="flex-1 p-2 flex flex-col items-center justify-center relative">
-            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">HRV</div>
+            <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase mb-1">HRV (7d)</div>
             <div className="text-base font-medium tracking-tight text-white/80">
-              {data.hrv7d.toFixed(2)}
+              {data.hrv7d.toFixed(1)}
             </div>
           </div>
-        </motion.div>
-
-        {/* Last 7 Days Blocks */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="space-y-3 pt-4 border-t border-white/5">
-          <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Últimos 7 días</div>
-          <div className="flex items-center gap-2">
-            {data.last7Days.slice(-7).map((day, i) => {
-              const bg = day.ansProfile === 'INSUFFICIENT_DATA' ? 'bg-white/10' :
-                day.alertLevel === 0 ? 'bg-green-500/20 text-green-400' :
-                  day.alertLevel === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-                    day.alertLevel === 2 ? 'bg-orange-500/20 text-orange-400' :
-                      'bg-red-500/20 text-red-400';
-              const isToday = i === data.last7Days.length - 1;
-              const dateObj = new Date(day.date);
-              dateObj.setHours(dateObj.getHours() + 12); // Adjust timezone offset simply
-              const dayName = isToday ? 'Hoy' : dateObj.toLocaleDateString('es-ES', { weekday: 'short' }).charAt(0).toUpperCase();
-
-              return (
-                <div key={i} className={`flex-1 flex items-center justify-center py-2 rounded-md ${bg} ${isToday ? 'border border-current opacity-100' : 'opacity-70'}`}>
-                  <span className="font-mono text-[10px] uppercase font-semibold">{dayName}</span>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Recommendation */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="space-y-3 pt-4 border-t border-white/5">
-          <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Recomendación</div>
-          <div className={`text-sm leading-relaxed ${stateConfig.color} pl-3 border-l-2 ${stateConfig.border}`}>
-            {data.action || "Ninguna acción detectada. Entrena según sensaciones."}
-          </div>
-        </motion.div>
-
-        {/* Soreness Semaphores */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="space-y-4 pt-6 border-t border-white/5">
-          <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase">Soreness / Injury</div>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'PUSH', val: data.soreness.push },
-              { label: 'PULL', val: data.soreness.pull },
-              { label: 'LEGS', val: data.soreness.legs },
-              { label: 'INJURY', val: data.soreness.injury }
-            ].map((s, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/5">
-                <span className="font-mono text-[9px] text-white/50">{s.label}</span>
-                <div className={`w-3 h-3 rounded-full ${getSorenessColor(s.val)}`} />
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        </div>
 
         {/* Readiness Trend Sparkline */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="space-y-3 pt-6 border-t border-white/5 pb-8">
+        <div className="space-y-3 pt-6 border-t border-white/5 pb-2">
           <div className="font-mono text-[9px] tracking-[0.1em] text-white/40 uppercase flex justify-between">
-            <span>Readiness Trend</span>
-            <span>z=0 Baseline</span>
+            <span>Tendencia Readiness (Z-Score)</span>
+            <span>Estabilidad (z=0)</span>
           </div>
-          <div className="h-24 w-full relative">
+          <div className="h-32 w-full relative bg-white/[0.02] rounded-xl border border-white/5 p-2">
             {/* Zero Line */}
-            <div className="absolute top-[50%] left-0 right-0 h-px bg-white/20 border-dashed"
+            <div className="absolute left-0 right-0 h-px bg-white/20 border-dashed"
               style={{ top: `${((maxZ - 0) / range) * 100}%` }} />
 
-            {/* SVG Sparkline */}
             <svg viewBox={`0 0 100 100`} preserveAspectRatio="none" className="w-full h-full overflow-visible">
               <polyline
                 fill="none"
-                stroke="rgba(255,255,255,0.6)"
+                stroke="rgba(255,255,255,0.4)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -221,12 +223,67 @@ const MonitoringDashboard = () => {
               {data.readinessTrend.map((pt, i) => {
                 const x = (i / Math.max(1, data.readinessTrend.length - 1)) * 100;
                 const y = ((maxZ - pt.readiness) / range) * 100;
-                return <circle key={i} cx={x} cy={y} r="1.5" fill="rgba(255,255,255,0.9)" />;
+                const dotColor = pt.readiness < -1.5 ? "rgba(248,113,113,1)" : "rgba(255,255,255,0.9)";
+                return <circle key={i} cx={x} cy={y} r="2" fill={dotColor} />;
               })}
             </svg>
           </div>
-        </motion.div>
+        </div>
+      </div>
+    );
 
+    return (
+      <div className="flex-1 overflow-y-auto pb-6 pt-20 px-5 max-w-md mx-auto w-full">
+        {/* Date */}
+        <div className="font-mono text-[10px] text-white/50 uppercase tracking-widest text-center mb-5">
+          {data.date} {data.measurementTime ? `· ${data.measurementTime}` : ''}
+        </div>
+
+        {/* Toggle Atleta / Entrenador */}
+        <div className="bg-[#111111] p-1 rounded-xl flex items-center mb-8 border border-white/10 shadow-inner">
+          <button
+            onClick={() => setViewMode('athlete')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-mono tracking-widest uppercase transition-all duration-300 ${viewMode === 'athlete'
+                ? 'bg-[#222222] text-white shadow-md font-bold'
+                : 'text-white/40 hover:text-white/70'
+              }`}
+          >
+            <User className="w-4 h-4" /> Atleta
+          </button>
+          <button
+            onClick={() => setViewMode('coach')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-mono tracking-widest uppercase transition-all duration-300 ${viewMode === 'coach'
+                ? 'bg-[#222222] text-white shadow-md font-bold'
+                : 'text-white/40 hover:text-white/70'
+              }`}
+          >
+            <LineChart className="w-4 h-4" /> Entrenador
+          </button>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {viewMode === 'athlete' ? (
+            <motion.div
+              key="athlete"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderAthleteView()}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="coach"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderCoachView()}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
