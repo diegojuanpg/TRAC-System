@@ -30,7 +30,7 @@ export const useSubmitToScript = () => {
     // Step 1: Check if already submitted today
     const checkRes = await fetch(scriptUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
         token: SHARED_TOKEN,
         action: "check",
@@ -68,7 +68,7 @@ export const useSubmitToScript = () => {
     // Step 4: Write ALL recalculated rows back to the sheet
     const writeRes = await fetch(scriptUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
         token: SHARED_TOKEN,
         action: "writeTRAC",
@@ -87,7 +87,7 @@ export const useSubmitToScript = () => {
       try {
         await fetch(scriptUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({
             token: SHARED_TOKEN,
             action: "saveNutrition",
@@ -115,7 +115,7 @@ export const useSubmitToScript = () => {
 
     const res = await fetch(scriptUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
         token: SHARED_TOKEN,
         action: "saveNutrition",
