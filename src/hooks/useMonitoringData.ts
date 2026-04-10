@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 
-const SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL as string;
 const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
 
 export interface MonitoringData {
@@ -44,8 +43,11 @@ export const useMonitoringData = () => {
         return;
       }
 
-      if (!SCRIPT_URL) {
-        setError("VITE_APPS_SCRIPT_URL not configured");
+      const scriptUrl = user.scriptUrl;
+      const sheetId = user.sheetId;
+
+      if (!scriptUrl || !sheetId) {
+        setError("Configuración de atleta no encontrada. Re-inicia sesión.");
         setLoading(false);
         return;
       }
@@ -57,16 +59,10 @@ export const useMonitoringData = () => {
         const urlArgs = new URLSearchParams({
           action: 'fetchDashboard',
           token: SHARED_TOKEN,
-          email: user.email,
+          sheetId: sheetId,
         });
 
-        const finalUrl = `${SCRIPT_URL}?${urlArgs.toString()}`;
-
-        console.log("======= DEBUG FETCH DASHBOARD =======");
-        console.log("VITE_APPS_SCRIPT_URL que Vercel compiló:", SCRIPT_URL);
-        console.log("URL final generada:", finalUrl);
-        console.log("=====================================");
-
+        const finalUrl = `${scriptUrl}?${urlArgs.toString()}`;
         const res = await fetch(finalUrl);
 
         if (!res.ok) {
@@ -79,9 +75,9 @@ export const useMonitoringData = () => {
         } else {
           throw new Error(json.error || "Failed to fetch data");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Fetch monitoring data error:", err);
-        if (mounted) setError(err.message || "An error occurred");
+        if (mounted) setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         if (mounted) setLoading(false);
       }

@@ -4,6 +4,12 @@ export interface User {
   email: string;
   name: string;
   picture: string;
+  /** URL of the coach's Data Logger script for this athlete */
+  scriptUrl: string | null;
+  /** ID of the athlete's spreadsheet */
+  sheetId: string | null;
+  /** Name of the athlete from the allowed list */
+  athleteName: string | null;
 }
 
 interface UserContextType {
