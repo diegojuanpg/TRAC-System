@@ -109,6 +109,7 @@ function doGet(e) {
 
     // ── FETCH HISTORY: Devolver headers + últimas N filas de TRAC_database ──
     if (action === 'fetchHistory') {
+      enforceHeaders(sheetId);
       const maxRows = parseInt(e.parameter.rows || '50');
       const result = fetchHistory(sheetId, maxRows);
       return jsonResponse({ success: true, data: result });
@@ -116,6 +117,7 @@ function doGet(e) {
 
     // ── FETCH DASHBOARD: Devolver datos para el dashboard ──
     if (action === 'fetchDashboard') {
+      enforceHeaders(sheetId);
       const result = fetchDashboardData(sheetId);
       return jsonResponse({ success: true, data: result });
     }
