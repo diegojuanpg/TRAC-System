@@ -108,6 +108,32 @@ const MorningSurvey = () => {
     setPhase('success');
   };
 
+  const fillTestData = () => {
+    setFormData({
+      hr1: 60,
+      hr2: 75,
+      hr3: 65,
+      hr4: 68,
+      tap_total: 55,
+      tap_variance: 5,
+      tap_pauses: 1,
+      bodyweight: 80.5,
+      contexto: 'Normal',
+      push_soreness: 2,
+      pull_soreness: 2,
+      legs_soreness: 2,
+      lesion: 1,
+      cansancio: 2,
+      carga: 3,
+      recuperacion: 2,
+      horas_sueno: 2,
+      calidad_sueno: 2,
+      alimentacion: 1,
+      motivacion: 1
+    });
+    setPhase('summary');
+  };
+
   const slideVariants = {
     enter: (d: number) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
     center: { x: 0, opacity: 1 },
@@ -161,8 +187,17 @@ const MorningSurvey = () => {
       <div className="relative z-10 min-h-screen flex flex-col">
         <AnimatePresence mode="wait" custom={direction}>
           {phase === 'intro' && (
-            <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex items-center justify-center p-6">
+            <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6 relative">
               <SurveyIntro onStart={() => { setPhase('steps'); setCurrentStep(0); }} totalSteps={totalSteps} />
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={fillTestData} 
+                className="mt-8 font-mono text-[10px] tracking-[0.1em] uppercase border-white/10 text-muted-foreground/60 hover:text-white"
+              >
+                TEST DATA FILL
+              </Button>
             </motion.div>
           )}
 
