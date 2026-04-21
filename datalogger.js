@@ -187,15 +187,19 @@ function enforceHeaders(ssId) {
   }
   
   if (!match) {
-    const paddedHeaders = [...REQUIRED_HEADERS];
-    // Pad to 100 columns to ensure we overwrite any old legacy columns (like the 66-column schema)
-    while (paddedHeaders.length < 100) paddedHeaders.push('');
-    const fullHdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":CV" + CONFIG.TRAC_HEADER_ROW;
+    try {
+      // Intentar limpiar toda la fila 6 para borrar las columnas legacy
+      Sheets.Spreadsheets.Values.clear({}, ssId, "'" + CONFIG.TRAC_DB + "'!6:6");
+    } catch(e) {
+      console.warn('[DataLogger] Error limpiando headers antiguos: ' + e.message);
+    }
     
+    // Escribir solo las 60 columnas necesarias empezando en A6
+    const writeRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW;
     Sheets.Spreadsheets.Values.update(
-      { values: [paddedHeaders] },
+      { values: [REQUIRED_HEADERS] },
       ssId,
-      fullHdrRange,
+      writeRange,
       { valueInputOption: 'RAW' }
     );
     console.log('[DataLogger] Headers did not match required format. Overwritten.');
