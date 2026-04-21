@@ -84,7 +84,6 @@ const MorningSurvey = () => {
     // Drop all physiological fields before BW to avoid partial dirty states
     setFormData(prev => {
       const n = { ...prev };
-      delete n.hrv;
       delete n.hr1; delete n.hr2; delete n.hr3; delete n.hr4;
       delete n.tap_total; delete n.tap_variance; delete n.tap_pauses;
       return n;
@@ -215,14 +214,6 @@ const MorningSurvey = () => {
                 <Button variant="ghost" onClick={handleSkip} className="shrink-0 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground/50">
                   <SkipForward className="h-3.5 w-3.5 mr-1" />
                   Skip
-                </Button>
-              )}
-              {step?.id === 'hrv' && (
-                <Button variant="nav" onClick={handleSkipToBW} className="shrink-0 h-12 px-4 shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-white/10 ml-1">
-                  <SkipForward className="h-4 w-4 mr-2 text-white/70" />
-                  <span className="font-mono text-[10px] tracking-[0.06em] uppercase text-white/90">
-                    Saltar a BW
-                  </span>
                 </Button>
               )}
               <Button variant="nav" size="full" onClick={goNext} disabled={!isStepValid()} className="flex-1">

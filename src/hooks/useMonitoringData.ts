@@ -13,8 +13,6 @@ export interface MonitoringData {
   readinessZ: number;
   fatigueZ: number;
   fitnessZ: number;
-  hrv7d: number;
-  hrvDelta: number;
   stfLtfRatio: number;
   stf: number;
   ltf: number;
@@ -24,6 +22,8 @@ export interface MonitoringData {
     legs: number;
     injury: number;
   };
+  peripheralStress: number;
+  centralStress: number;
   readinessTrend: { date: string; readiness: number }[];
   last7Days: { date: string; alertLevel: number; ansProfile: string }[];
 }

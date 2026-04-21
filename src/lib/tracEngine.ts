@@ -19,13 +19,12 @@ export const CONFIG_TRAC = {
   LTF_WINDOW: 28,
   EWMA_LAMBDA_STF: 0.25,
   EWMA_LAMBDA_LTF: 0.069,
-  ALERT_THRESHOLDS: [-1.0, -1.5, -2.0] as readonly number[],
+  ALERT_THRESHOLDS: [0.5, -0.5, -1.0, -1.5] as readonly number[],
 
   MAP_GROUP1: [
     { search: "Tap Speed Test", dbCol: "Tap Speed Test", zCol: "Z-Tap Speed Test", category: "fatigue", window: 28 },
     { search: "Tap Variance", dbCol: "Tap_Variance", zCol: "Z-Tap Variance", category: null, window: 28 },
     { search: "Tap Pauses", dbCol: "Tap_Pauses", zCol: "Z-Tap Pauses", category: null, window: 28 },
-    { search: "HRV/VFC", dbCol: "VFC/HRV", zCol: null, category: null, window: 14 },
     {
       search: "Orthostatic Test", isOrthostatic: true, category: "fatigue", window: 14,
       dbCol: "", zCol: null,
@@ -54,10 +53,6 @@ export const CONFIG_TRAC = {
   ],
 
   DERIVED_METRICS: [
-    { dbCol: "ln_HRV", zCol: null, window: null },
-    { dbCol: "lnHRV_7d_mean", zCol: "Z-ln_HRV", window: 28 },
-    { dbCol: "CV_lnHRV", zCol: "Z-CV_lnHRV", window: 28 },
-    { dbCol: "lnRMSSD_RR_ratio", zCol: "Z-lnRMSSD_RR", window: 14 },
     { dbCol: "OrthoResponse", zCol: "Z-OrthoResponse", window: 14 },
     { dbCol: "VagalRecovery", zCol: "Z-VagalRecovery", window: 14 },
     { dbCol: "PosturalCost", zCol: "Z-PosturalCost", window: 14 },
@@ -74,7 +69,7 @@ export const CONFIG_TRAC = {
   ],
 
   FITNESS_Z_COLS: [
-    "Z-ln_HRV", "Z-Recuperación Percibida",
+    "Z-Recuperación Percibida",
     "Z-Horas de Sueño", "Z-Calidad de Sueño",
     "Z-Alimentacion", "Z-Motivacion", "Z-VagalRecovery"
   ]
@@ -95,7 +90,6 @@ export type HeaderMap = Record<string, number>;
 
 export interface FormData {
   [key: string]: string | number | undefined;
-  hrv?: number | string;
   hr1?: number | string;
   hr2?: number | string;
   hr3?: number | string;
@@ -163,19 +157,15 @@ export function buildCalculatedData(
   });
 
   // ── Derived metrics from form data ──
-  const hrv = formData.hrv !== undefined ? parseFloat(String(formData.hrv)) : NaN;
   const hr1 = formData.hr1 !== undefined ? parseInt(String(formData.hr1)) : NaN;
   const hr2 = formData.hr2 !== undefined ? parseInt(String(formData.hr2)) : NaN;
   const hr3 = formData.hr3 !== undefined ? parseInt(String(formData.hr3)) : NaN;
   const hr4 = formData.hr4 !== undefined ? parseInt(String(formData.hr4)) : NaN;
 
-  const ln_hrv = !isNaN(hrv) && hrv > 0 ? Math.log(hrv) : '';
   const orthoResponse = !isNaN(hr2) && !isNaN(hr1) ? hr2 - hr1 : '';
   const vagalRecovery = !isNaN(hr2) && !isNaN(hr3) ? hr2 - hr3 : '';
   const posturalCost = !isNaN(hr4) && !isNaN(hr1) ? hr4 - hr1 : '';
   const pots_flag = typeof orthoResponse === 'number' ? orthoResponse > CONFIG_TRAC.POTS_THRESHOLD : '';
-  const lnRMSSD_RR = (ln_hrv !== '' && !isNaN(hr1) && hr1 > 0)
-    ? (ln_hrv as number) / (60000 / hr1) : '';
 
   // ── Build the new row ──
   const newRow = buildNewRow(colMap, {
@@ -184,9 +174,6 @@ export function buildCalculatedData(
     'Protocol_Confirmed': true,
     'Context_Flag': formData.contexto || 'Normal',
     'Bodyweight': formData.bodyweight !== undefined ? parseFloat(String(formData.bodyweight)) : '',
-    'VFC/HRV': !isNaN(hrv) ? hrv : '',
-    'ln_HRV': ln_hrv,
-    'lnRMSSD_RR_ratio': lnRMSSD_RR,
     'Tap Speed Test': formData.tap_total !== undefined ? parseInt(String(formData.tap_total)) : '',
     'Tap_Variance': formData.tap_variance !== undefined ? parseInt(String(formData.tap_variance)) : '',
     'Tap_Pauses': formData.tap_pauses !== undefined ? parseInt(String(formData.tap_pauses)) : '',
@@ -244,46 +231,8 @@ export function buildCalculatedData(
 // PRE-CALCULATE 7-day METRICS
 // ══════════════════════════════════════════
 
-export function tracPreCalculate7dMetrics(allData: DataRow[], hMap: HeaderMap): void {
-  const lnHRVIdx = hMap['ln_HRV'];
-  const lnHRV7dIdx = hMap['lnHRV_7d_mean'];
-  const cvLnHRVIdx = hMap['CV_lnHRV'];
-  const lnRRIdx = hMap['lnRMSSD_RR_ratio'];
-  const hr1Idx = hMap['HR1'];
-
-  for (let i = 0; i < allData.length; i++) {
-
-    if (lnHRVIdx !== undefined) {
-      const windowStart = Math.max(0, i - 6);
-      const vals: number[] = [];
-      for (let j = windowStart; j <= i; j++) {
-        const v = parseFloat(String(allData[j][lnHRVIdx]));
-        if (!isNaN(v)) vals.push(v);
-      }
-      if (vals.length > 0) {
-        const mean7d = vals.reduce((a, b) => a + b, 0) / vals.length;
-        if (lnHRV7dIdx !== undefined) allData[i][lnHRV7dIdx] = mean7d;
-        if (cvLnHRVIdx !== undefined && vals.length >= 2) {
-          const variance = vals.reduce((a, b) => a + Math.pow(b - mean7d, 2), 0) / vals.length;
-          allData[i][cvLnHRVIdx] = mean7d !== 0 ? (Math.sqrt(variance) / mean7d) * 100 : 0;
-        }
-      } else {
-        if (lnHRV7dIdx !== undefined) allData[i][lnHRV7dIdx] = '';
-        if (cvLnHRVIdx !== undefined) allData[i][cvLnHRVIdx] = '';
-      }
-    }
-
-    if (lnRRIdx !== undefined && lnHRVIdx !== undefined && hr1Idx !== undefined) {
-      const existing = allData[i][lnRRIdx];
-      if (existing === '' || existing === null || existing === undefined || isNaN(parseFloat(String(existing)))) {
-        const lnHRV = parseFloat(String(allData[i][lnHRVIdx]));
-        const hr1 = parseFloat(String(allData[i][hr1Idx]));
-        if (!isNaN(lnHRV) && !isNaN(hr1) && hr1 > 0) {
-          allData[i][lnRRIdx] = lnHRV / (60000 / hr1);
-        }
-      }
-    }
-  }
+export function tracPreCalculate7dMetrics(_allData: DataRow[], _hMap: HeaderMap): void {
+  // HRV-derived pre-calculations removed — function retained for API compatibility
 }
 
 
@@ -358,25 +307,34 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
   const colSTF = hMap['STF'];
   const colLTF = hMap['LTF'];
   const colReadiness = hMap['Readiness'];
+  const colPeripheralStress = hMap['Peripheral_Stress'];
+  const colCentralStress = hMap['Central_Stress'];
   const colSTFLTF = hMap['STF_LTF_Ratio'];
   const colANS = hMap['ANS_Profile'];
   const colTrend = hMap['Trend_7d'];
   const colAlert = hMap['Alert_Level'];
   const colAction = hMap['TRAC_Action'];
 
-  const zLnHRVIdx = hMap['Z-ln_HRV'];
   const zOrthoRespIdx = hMap['Z-OrthoResponse'];
   const zHR1Idx = hMap['Z-HR1'];
   const zPosturalIdx = hMap['Z-PosturalCost'];
   const zReadinessIdx = hMap['Z-Readiness'];
   const insufficientIdx = hMap['INSUFFICIENT_DATA'];
 
+  const zPushIdx = hMap['Z-Push Soreness'];
+  const zPullIdx = hMap['Z-Pull Soreness'];
+  const zLegsIdx = hMap['Z-Legs Soreness'];
+  const zLesionIdx = hMap['Z-Lesión/Molestia'];
+  const zTapSpeedIdx = hMap['Z-Tap Speed Test'];
+  const zCansancioIdx = hMap['Z-Cansancio'];
+  const zCalidadSuenoIdx = hMap['Z-Calidad de Sueño'];
+
   const avgOfValid = (row: DataRow, indices: number[]): CellValue => {
     const vals = indices.map(i => parseFloat(String(row[i]))).filter(v => !isNaN(v));
     return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : '';
   };
 
-  // Pass 1: Fatigue, Fitness, Readiness
+  // Pass 1: Fatigue, Fitness, Readiness, Stress Scores
   for (let i = 0; i < allData.length; i++) {
     if (insufficientIdx !== undefined) allData[i][insufficientIdx] = false;
     if (colFatigue !== undefined) allData[i][colFatigue] = avgOfValid(allData[i], fatigueZIdx);
@@ -385,6 +343,27 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
       const fat = parseFloat(String(allData[i][colFatigue]));
       const fit = parseFloat(String(allData[i][colFitness]));
       allData[i][colReadiness] = (!isNaN(fat) && !isNaN(fit)) ? fit - fat : '';
+    }
+
+    // Peripheral & Central Stress Scores
+    if (colPeripheralStress !== undefined) {
+      const pVals = [zPushIdx, zPullIdx, zLegsIdx, zLesionIdx]
+        .map(idx => idx !== undefined ? parseFloat(String(allData[i][idx])) : NaN)
+        .filter(v => !isNaN(v));
+      allData[i][colPeripheralStress] = pVals.length === 4 ? pVals.reduce((a, b) => a + b, 0) / 4 : '';
+    }
+    
+    if (colCentralStress !== undefined) {
+      const tap = zTapSpeedIdx !== undefined ? parseFloat(String(allData[i][zTapSpeedIdx])) : NaN;
+      const ortho = zOrthoRespIdx !== undefined ? parseFloat(String(allData[i][zOrthoRespIdx])) : NaN;
+      const cansancio = zCansancioIdx !== undefined ? parseFloat(String(allData[i][zCansancioIdx])) : NaN;
+      const sueno = zCalidadSuenoIdx !== undefined ? parseFloat(String(allData[i][zCalidadSuenoIdx])) : NaN;
+      
+      if (!isNaN(tap) && !isNaN(ortho) && !isNaN(cansancio) && !isNaN(sueno)) {
+        allData[i][colCentralStress] = (tap + ortho + cansancio - sueno) / 4;
+      } else {
+        allData[i][colCentralStress] = '';
+      }
     }
   }
 
@@ -412,7 +391,7 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
       for (let i = 0; i < allData.length; i++) {
         const stf = parseFloat(String(allData[i][colSTF]));
         const ltf = parseFloat(String(allData[i][colLTF]));
-        allData[i][colSTFLTF] = (!isNaN(stf) && !isNaN(ltf) && ltf !== 0) ? stf / ltf : '';
+        allData[i][colSTFLTF] = (!isNaN(stf) && !isNaN(ltf)) ? (1 - ((stf - ltf) / 2)) : '';
       }
     }
   }
@@ -447,39 +426,28 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
 
     if (colAlert !== undefined) {
       const zRead = zReadinessIdx !== undefined ? parseFloat(String(allData[i][zReadinessIdx])) : NaN;
-      if (isNaN(zRead)) allData[i][colAlert] = 0;
-      else if (zRead <= CONFIG_TRAC.ALERT_THRESHOLDS[2]) allData[i][colAlert] = 3;
-      else if (zRead <= CONFIG_TRAC.ALERT_THRESHOLDS[1]) allData[i][colAlert] = 2;
-      else if (zRead <= CONFIG_TRAC.ALERT_THRESHOLDS[0]) allData[i][colAlert] = 1;
-      else allData[i][colAlert] = 0;
+      if (isNaN(zRead)) allData[i][colAlert] = 2; // Default to 'Bueno' if no data
+      else if (zRead > CONFIG_TRAC.ALERT_THRESHOLDS[0]) allData[i][colAlert] = 1;
+      else if (zRead > CONFIG_TRAC.ALERT_THRESHOLDS[1]) allData[i][colAlert] = 2;
+      else if (zRead > CONFIG_TRAC.ALERT_THRESHOLDS[2]) allData[i][colAlert] = 3;
+      else if (zRead > CONFIG_TRAC.ALERT_THRESHOLDS[3]) allData[i][colAlert] = 4;
+      else allData[i][colAlert] = 5;
     }
 
     if (colANS !== undefined) {
       const zRead = zReadinessIdx !== undefined ? parseFloat(String(allData[i][zReadinessIdx])) : NaN;
       const alertLvl = colAlert !== undefined ? allData[i][colAlert] : 0;
       const insuffFlag = insufficientIdx !== undefined ? allData[i][insufficientIdx] : false;
-      const zLnHRV = zLnHRVIdx !== undefined ? parseFloat(String(allData[i][zLnHRVIdx])) : NaN;
       const zOrthoResp = zOrthoRespIdx !== undefined ? parseFloat(String(allData[i][zOrthoRespIdx])) : NaN;
       const zHR1 = zHR1Idx !== undefined ? parseFloat(String(allData[i][zHR1Idx])) : NaN;
       const zPostural = zPosturalIdx !== undefined ? parseFloat(String(allData[i][zPosturalIdx])) : NaN;
-      const zLnRRIdx = hMap['Z-lnRMSSD_RR'];
-      const zLnRR = zLnRRIdx !== undefined ? parseFloat(String(allData[i][zLnRRIdx])) : NaN;
 
       if (insuffFlag === true) allData[i][colANS] = 'INSUFFICIENT_DATA';
       else if (!isNaN(zRead) && zRead > 0 && alertLvl === 0) allData[i][colANS] = 'OPTIMAL';
-      else if (!isNaN(zLnHRV) && zLnHRV < -1.0 && !isNaN(zOrthoResp) && zOrthoResp > 1.0) allData[i][colANS] = 'SNS_DOMINANT';
-      else if (!isNaN(zLnHRV) && zLnHRV < -1.0 && !isNaN(zHR1) && zHR1 < -1.0 && !isNaN(zPostural) && zPostural < -1.0) {
-        allData[i][colANS] = (!isNaN(zLnRR) && zLnRR < -1.0) ? 'PSNS_SATURATION' : 'PSNS_DOMINANT';
-      }
+      else if (!isNaN(zOrthoResp) && zOrthoResp > 1.5) allData[i][colANS] = 'SNS_DOMINANT';
+      else if (!isNaN(zHR1) && zHR1 < -1.0 && !isNaN(zPostural) && zPostural < -1.0) allData[i][colANS] = 'PSNS_DOMINANT';
       else if (!isNaN(zRead) && zRead < -1.0) allData[i][colANS] = 'BALANCED_FATIGUED';
       else allData[i][colANS] = 'OPTIMAL';
-
-      const colNFOR = hMap['NFOR_Risk'];
-      if (colNFOR !== undefined) {
-        const zCVIdx = hMap['Z-CV_lnHRV'];
-        const zCV = zCVIdx !== undefined ? parseFloat(String(allData[i][zCVIdx])) : NaN;
-        allData[i][colNFOR] = !isNaN(zCV) && zCV < -1.0;
-      }
     }
 
     if (colTrend !== undefined && colReadiness !== undefined) {
@@ -513,22 +481,40 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
 
 export function calculateTRACAction(row: DataRow, hMap: HeaderMap): string {
   const potsFlag = hMap['POTS_Flag'] !== undefined ? row[hMap['POTS_Flag']] : false;
-  const alertLevel = hMap['Alert_Level'] !== undefined ? row[hMap['Alert_Level']] : 0;
-  const ansProfile = hMap['ANS_Profile'] !== undefined ? String(row[hMap['ANS_Profile']]) : '';
+  const alertLevel = hMap['Alert_Level'] !== undefined ? parseInt(String(row[hMap['Alert_Level']])) : 2;
+  const zOrtho = hMap['Z-OrthoResponse'] !== undefined ? parseFloat(String(row[hMap['Z-OrthoResponse']])) : 0;
+  const zTap = hMap['Z-Tap Speed Test'] !== undefined ? parseFloat(String(row[hMap['Z-Tap Speed Test']])) : 0;
   const insuffFlag = hMap['INSUFFICIENT_DATA'] !== undefined ? row[hMap['INSUFFICIENT_DATA']] : false;
-  const nforRisk = hMap['NFOR_Risk'] !== undefined ? row[hMap['NFOR_Risk']] : false;
 
-  if (potsFlag === true) return 'REPOSO TOTAL - Delta ortostatico critico (>30bpm). No entrenar.';
-  if (alertLevel === 3) return 'Descanso completo o sesion regenerativa (RPE 2-3) - Nivel de fatiga critico.';
-  if (nforRisk === true && alertLevel === 0) return 'Alerta NFOR - Variabilidad del HRV en declive. Reducir volumen preventivamente esta semana aunque el readiness parezca ok.';
-  if (ansProfile === 'SNS_DOMINANT') return 'Fatiga Simpatica - Reducir intensidad drasticamente (cap RPE 6). Mantener volumen moderado.';
-  if (ansProfile === 'PSNS_DOMINANT') return 'Fatiga Parasimpatica - Reduccion moderada: RPE -1 sobre plan, volumen 65-70%. Evitar cargas maximas y PRs.';
-  if (ansProfile === 'PSNS_SATURATION') return 'Saturacion Parasimpatica (Superforma) - HRV bajo por tono vagal elevado, no por fatiga. Sesion normal, posibilidad de PR.';
-  if (ansProfile === 'BALANCED_FATIGUED') return 'Fatiga Generalizada - Reduccion moderada de volumen e intensidad (RPE -1 y Series -1).';
-  if (alertLevel === 2) return 'Fatiga Moderada - Sesion ligera/moderada (RPE 5-6).';
-  if (alertLevel === 1) return 'Fatiga Leve - Reduccion preventiva de intensidad (RPE -1).';
-  if (alertLevel === 0 && ansProfile !== 'INSUFFICIENT_DATA' && insuffFlag !== true) return 'Readiness Optimo - Sesion segun plan. Posibilidad de records personales (PR).';
-  return 'Datos Insuficientes - Entrenar segun sensaciones hasta completar ventana de 7 dias.';
+  if (potsFlag === true) return 'REPOSO TOTAL - Delta ortostático crítico (>30bpm). No entrenar.';
+  if (insuffFlag === true) return 'Datos Insuficientes - Entrenar según sensaciones hasta completar ventana de 7 días.';
+
+  const readinessTexts: Record<number, string> = {
+    1: 'ÓPTIMO: Capacidad máxima. Sistema totalmente listo para rendir al 100%.',
+    2: 'BUENO: Estado equilibrado. Entrenar según lo planeado.',
+    3: 'PRECAUCIÓN: Fatiga leve. Evitar excesos y monitorizar sensaciones.',
+    4: 'ALERTA: Fatiga moderada. Reducción de carga necesaria.',
+    5: 'CRÍTICO: Agotamiento severo. Descanso o sesión regenerativa.'
+  };
+
+  let action = readinessTexts[alertLevel] || readinessTexts[2];
+
+  // Diagnóstico específico (SNS / SNC)
+  const snsFatigue = zOrtho > 1.5;
+  const sncFatigue = zTap > 1.0;
+
+  if (snsFatigue || sncFatigue) {
+    action += '\n\nDetalle: ';
+    if (snsFatigue && sncFatigue) {
+      action += 'Fatiga Sistémica detectada. Se recomienda bajar VOLUMEN e INTENSIDAD.';
+    } else if (snsFatigue) {
+      action += 'Fatiga SNS detectada. Se recomienda bajar la INTENSIDAD (kilos/RPE).';
+    } else if (sncFatigue) {
+      action += 'Fatiga SNC detectada. Se recomienda bajar el VOLUMEN (series/repeticiones).';
+    }
+  }
+
+  return action;
 }
 
 

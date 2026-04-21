@@ -26,6 +26,13 @@ const Login = () => {
     // Wait for the GIS script to load (loaded in index.html)
     const init = () => {
       if (!window.google) return;
+      
+      if (!CLIENT_ID) {
+        console.error("Missing VITE_GOOGLE_CLIENT_ID in .env");
+        setLoginError("Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env local.");
+        return;
+      }
+
       clientRef.current = window.google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: "openid email profile",

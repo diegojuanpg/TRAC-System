@@ -118,37 +118,44 @@ export const TapTestStep = ({ formData, updateFormData }: TapTestStepProps) => {
   return (
     <div className="w-full max-w-sm">
       {phase === 'ready' && (
-        <div className="text-center">
+        <div className="text-center py-6">
           <button
             onClick={startCountdown}
-            className="w-32 h-32 rounded-full bg-white/[0.03] border border-white/[0.08] text-foreground/80 font-mono text-xs font-medium tracking-[0.08em] uppercase mx-auto flex items-center justify-center hover:border-white/[0.15] transition-colors active:scale-95"
+            className="w-44 h-44 rounded-full bg-white/[0.03] border border-white/[0.08] text-white/90 font-mono text-base font-bold tracking-[0.15em] uppercase mx-auto flex items-center justify-center hover:border-white/[0.2] hover:bg-white/[0.06] transition-all active:scale-95 drop-shadow-md"
           >
             TAP<br />INICIAR
           </button>
-          <div className="font-mono text-[9px] text-muted-foreground/40 tracking-[0.2em] mt-4 uppercase">
+          <div className="font-mono text-xs font-medium text-muted-foreground/60 tracking-[0.25em] mt-8 uppercase">
             10 segundos · mano dominante
           </div>
         </div>
       )}
 
       {phase === 'countdown' && (
-        <div className="text-center">
+        <div className="text-center flex flex-col items-center justify-center py-8 relative">
           <div className={cn(
-            "text-8xl font-extralight text-foreground/90 leading-none",
-            countdown > 0 ? "animate-pulse-glow" : ""
+            "text-[8rem] font-black tracking-tighter leading-none transition-all duration-300",
+            countdown > 0 
+              ? "text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)] animate-pulse" 
+              : "text-emerald-400 drop-shadow-[0_0_40px_rgba(52,211,153,0.6)] scale-110"
           )}>
-            {countdown > 0 ? countdown : 'GO'}
+            {countdown > 0 ? countdown : 'GO!'}
           </div>
-          <div className="font-mono text-[10px] text-muted-foreground/40 tracking-[0.2em] mt-3 uppercase">Preparate</div>
+          <div className="font-mono text-xs text-amber-500/80 tracking-[0.3em] font-semibold mt-4 uppercase animate-pulse">
+            Preparate
+          </div>
         </div>
       )}
 
       {phase === 'active' && (
         <div className="text-center">
-          <div className="text-7xl font-extralight text-foreground/90 leading-none mb-1 transition-transform">
+          <div className="text-[7rem] font-bold text-white leading-none mb-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-transform">
             {tapCount}
           </div>
-          <div className="font-mono text-[10px] font-medium text-muted-foreground/50 tracking-[0.14em] mb-5 uppercase">
+          <div className={cn(
+            "font-mono text-xs font-semibold tracking-[0.2em] mb-5 uppercase",
+            timeLeft <= 3 ? "text-red-400 animate-pulse" : "text-amber-500/80"
+          )}>
             {timeLeft} S
           </div>
           <div
@@ -191,10 +198,6 @@ export const TapTestStep = ({ formData, updateFormData }: TapTestStepProps) => {
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="mt-3 p-3 rounded-lg border border-white/[0.06] bg-white/[0.03] flex gap-2.5 items-start">
-              <div className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ background: cns.color }} />
-              <div className="text-xs leading-relaxed" style={{ color: cns.color }}>{cns.msg}</div>
             </div>
             <button
               onClick={retry}

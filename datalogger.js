@@ -307,9 +307,6 @@ function fetchDashboardData(ssId) {
     }
   }
 
-  const currentHrv7d = getVal(lastRow, 'lnHRV_7d_mean', 0);
-  const prevHrv7d = prevRow ? getVal(prevRow, 'lnHRV_7d_mean', 0) : 0;
-
   return {
     date: getVal(lastRow, 'Date'),
     measurementTime: getVal(lastRow, 'Measurement_Time', ''),
@@ -319,8 +316,6 @@ function fetchDashboardData(ssId) {
     readinessZ: getVal(lastRow, 'Z-Readiness', 0),
     fatigueZ: getVal(lastRow, 'Fatigue', 0),
     fitnessZ: getVal(lastRow, 'Fitness', 0),
-    hrv7d: currentHrv7d,
-    hrvDelta: currentHrv7d - prevHrv7d,
     stfLtfRatio: getVal(lastRow, 'STF_LTF_Ratio', 0),
     stf: getVal(lastRow, 'STF', 0),
     ltf: getVal(lastRow, 'LTF', 0),
@@ -330,6 +325,8 @@ function fetchDashboardData(ssId) {
       legs: getVal(lastRow, 'Legs Soreness', 0),
       injury: getVal(lastRow, 'Lesión/Molestia', 0)
     },
+    peripheralStress: getVal(lastRow, 'Peripheral_Stress', 0),
+    centralStress: getVal(lastRow, 'Central_Stress', 0),
     readinessTrend,
     last7Days
   };

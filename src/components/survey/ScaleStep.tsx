@@ -8,18 +8,18 @@ interface ScaleStepProps {
 }
 
 const severityColors = [
-  'hsl(142 71% 45%)',
-  'hsl(80 60% 45%)',
-  'hsl(38 92% 50%)',
-  'hsl(25 95% 53%)',
-  'hsl(0 72% 51%)',
+  '142, 71%, 45%', // Green
+  '80, 60%, 45%',  // Lime
+  '38, 92%, 50%',  // Yellow-Orange
+  '25, 95%, 53%',  // Orange
+  '0, 72%, 51%',   // Red
 ];
 
 export const ScaleStep = ({ step, value, onChange }: ScaleStepProps) => {
   if (!step.options) return null;
 
   return (
-    <div className="w-full max-w-md flex flex-col gap-1.5">
+    <div className="w-full max-w-md flex flex-col gap-2.5">
       {step.options.map((opt, i) => {
         const selected = value === opt.value;
         return (
@@ -27,24 +27,29 @@ export const ScaleStep = ({ step, value, onChange }: ScaleStepProps) => {
             key={opt.value}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 flex items-center gap-3 text-left transition-all duration-150 border-l-4",
+              "w-full rounded-xl px-4 py-3.5 flex items-center gap-4 text-left transition-all duration-300 border",
               selected
-                ? "border-white/[0.1] bg-white/[0.05]"
-                : "hover:bg-white/[0.05]"
+                ? "shadow-sm scale-[1.02] ring-1"
+                : "opacity-80 hover:opacity-100 hover:scale-[1.01]"
             )}
             style={{
-              borderLeftColor: severityColors[i],
+              backgroundColor: selected ? `hsla(${severityColors[i]}, 0.15)` : `hsla(${severityColors[i]}, 0.03)`,
+              borderColor: selected ? `hsl(${severityColors[i]})` : `hsla(${severityColors[i]}, 0.15)`,
+              boxShadow: selected ? `0 0 20px hsla(${severityColors[i]}, 0.15)` : 'none',
+              ringColor: `hsl(${severityColors[i]})`
             }}
           >
-            <span className={cn(
-              "font-mono text-xs font-medium w-4 shrink-0 transition-colors",
-              selected ? "text-foreground/90" : "text-muted-foreground/50"
-            )}>
+            <div className={cn(
+              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-mono text-sm font-bold transition-colors",
+              selected ? "text-white" : "text-white/50"
+            )}
+            style={{ backgroundColor: selected ? `hsl(${severityColors[i]})` : `hsla(${severityColors[i]}, 0.15)` }}
+            >
               {opt.value}
-            </span>
+            </div>
             <span className={cn(
-              "text-sm leading-snug transition-colors",
-              selected ? "text-foreground/90 font-medium" : "text-muted-foreground"
+              "text-[15px] leading-snug transition-colors",
+              selected ? "text-white font-medium drop-shadow-sm" : "text-white/60"
             )}>
               {opt.label}
             </span>

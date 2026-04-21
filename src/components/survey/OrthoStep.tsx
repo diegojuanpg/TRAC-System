@@ -23,30 +23,33 @@ export const OrthoStep = ({ formData, updateFormData }: OrthoStepProps) => {
 
   return (
     <div className="w-full max-w-md">
-      {/* Protocol */}
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-4 mb-4">
-        <div className="font-mono text-[9px] font-semibold tracking-[0.2em] text-muted-foreground/50 uppercase mb-3">
+      {/* Protocol Box */}
+      <div className="bg-black/20 border border-white/[0.05] rounded-xl p-5 mb-6 w-full text-left relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-white/[0.12]" />
+        <div className="font-mono text-[10px] font-semibold tracking-[0.2em] text-white/50 uppercase mb-4 pl-2">
           PROTOCOLO
         </div>
-        {[
-          'Acostado durante 2m medirás la FC. El promedio será HR1.',
-          'Levantate lentamente, el valor mas alto que observes al levantarte sera HR2.',
-          'Despues del pico el valor mas bajo que observes sera HR3.',
-          'Parado durante 2m medirás la FC. El promedio será HR4.',
-        ].map((text, i) => (
-          <div key={i} className="flex gap-3 items-start mb-2 last:mb-0">
-            <span className="font-mono text-[10px] font-medium text-muted-foreground/40 w-4 shrink-0 pt-0.5">{i + 1}</span>
-            <span className="text-xs text-muted-foreground leading-relaxed">{text}</span>
-          </div>
-        ))}
+        <ol className="space-y-3.5 m-0 p-0 pl-2 list-none">
+          {[
+            'Acostado por 2 min. Registrar FC promedio (HR1).',
+            'Levantarse lento. Registrar FC máxima (HR2).',
+            'Tras este pico. Registrar FC mínima (HR3).',
+            'Parado por 2 min. Registrar FC promedio (HR4).',
+          ].map((text, i) => (
+            <li key={i} className="flex gap-3 items-start">
+               <span className="flex items-center justify-center bg-white/[0.05] border border-white/[0.08] text-white/70 font-mono text-[10px] rounded w-5 h-5 shrink-0 mt-0.5">{i + 1}</span>
+               <span className="text-xs text-muted-foreground/80 leading-relaxed pt-0.5">{text}</span>
+            </li>
+          ))}
+        </ol>
       </div>
 
       {/* Inputs grid */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {fields.map((f, i) => (
-          <div key={f.id} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3.5 text-center focus-within:border-white/[0.15] transition-colors">
-            <div className="font-mono text-[9px] font-semibold tracking-[0.18em] text-muted-foreground/50 uppercase mb-1">{f.label}</div>
-            <div className="text-[8px] text-muted-foreground/30 mb-2">{f.desc}</div>
+          <div key={f.id} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 text-center focus-within:bg-white/[0.04] focus-within:border-white/[0.15] transition-colors relative">
+            <div className="font-mono text-[11px] font-semibold tracking-[0.15em] text-white/80 uppercase mb-1">{f.label}</div>
+            <div className="text-[10px] text-muted-foreground/60 leading-snug mb-3 min-h-[28px] flex items-center justify-center px-1">{f.desc}</div>
             <input
               ref={i === 0 ? firstRef : undefined}
               type="number"
@@ -58,10 +61,11 @@ export const OrthoStep = ({ formData, updateFormData }: OrthoStepProps) => {
               onChange={(e) => {
                 const v = parseInt(e.target.value);
                 if (!isNaN(v)) updateFormData(f.id, v);
+                else if (e.target.value === '') updateFormData(f.id, NaN); // allow clearing
               }}
-              className="w-full bg-transparent border-b border-white/[0.08] py-1.5 text-center text-2xl font-light text-foreground/90 outline-none placeholder:text-muted-foreground/20 focus:border-white/[0.2] transition-colors"
+              className="w-full bg-transparent border-b-2 border-white/[0.05] pb-2 pt-1 text-center text-3xl sm:text-4xl font-light text-foreground/90 outline-none placeholder:text-muted-foreground/10 focus:border-white/[0.25] transition-colors"
             />
-            <div className="font-mono text-[8px] tracking-[0.16em] text-muted-foreground/40 mt-1 uppercase">BPM</div>
+            <div className="font-mono text-[9px] tracking-[0.15em] text-muted-foreground/40 mt-2 uppercase">BPM</div>
           </div>
         ))}
       </div>

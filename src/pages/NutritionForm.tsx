@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DarkLayout } from "@/components/DarkLayout";
-import { ChevronLeft, Send, Flame, Beef, Wheat, Droplets, Leaf, Footprints, Bike, Weight } from "lucide-react";
+import { ChevronLeft, Send, Flame, Beef, Wheat, Droplets, Leaf, Footprints, Bike, Weight, Apple } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { useSubmitToScript } from "@/hooks/useSubmitToScript";
 
@@ -59,31 +59,33 @@ const NutritionForm = () => {
       </div>
 
       <div className="relative z-10 px-4 py-6 pt-16 max-w-lg mx-auto">
-        {/* Compact header */}
+        {/* Redesigned header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-          className="flex items-center gap-3 mb-6"
+          className="flex flex-col items-center text-center mb-10"
         >
-          <div className="text-2xl">🍽️</div>
+          <div className="relative w-14 h-14 bg-gradient-to-b from-emerald-500/20 to-green-500/5 border border-emerald-500/20 rounded-[18px] flex items-center justify-center shadow-[inset_0_0_20px_rgba(16,185,129,0.1)] mb-4">
+            <Apple className="w-7 h-7 text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
+          </div>
           <div>
-            <div className="font-mono text-[10px] font-bold tracking-[0.2em] text-muted-foreground/50 uppercase">TRAC · Nutrition</div>
-            <h1 className="text-xl font-semibold text-foreground/90 tracking-tight">Registro diario</h1>
+            <div className="font-mono text-[10px] font-bold tracking-[0.25em] text-muted-foreground/50 uppercase mb-1">TRAC · Nutrition</div>
+            <h1 className="text-3xl font-semibold text-white tracking-tight">Registro diario</h1>
           </div>
         </motion.div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Bodyweight & Calories first */}
           <Section title="Cuerpo & Energía">
             <FieldRow icon={<Weight className="h-5 w-5" />} label="Peso corporal" sub="kg (opcional)" value={data.bodyweight} onChange={v => update('bodyweight', v)} placeholder="75.5" />
-            <div className="border-t border-white/[0.06]" />
+            <div className="border-t border-white/[0.04]" />
             <FieldRow icon={<Flame className="h-5 w-5" />} label="Calorías totales" sub="kcal" value={data.calories} onChange={v => update('calories', v)} placeholder="2000" />
           </Section>
 
           {/* Macros */}
           <Section title="Macronutrientes">
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               <MacroCard icon={<Beef className="h-4 w-4" />} label="Proteína" unit="gr" value={data.protein} onChange={v => update('protein', v)} />
               <MacroCard icon={<Wheat className="h-4 w-4" />} label="Carbohidratos" unit="gr" value={data.carbs} onChange={v => update('carbs', v)} />
               <MacroCard icon={<Droplets className="h-4 w-4" />} label="Grasas" unit="gr" value={data.fat} onChange={v => update('fat', v)} />
@@ -94,27 +96,28 @@ const NutritionForm = () => {
           {/* Activity */}
           <Section title="Hidratación & Actividad">
             <FieldRow icon={<Droplets className="h-5 w-5" />} label="Agua" sub="litros" value={data.water} onChange={v => update('water', v)} placeholder="0.0" />
-            <div className="border-t border-white/[0.06]" />
+            <div className="border-t border-white/[0.04]" />
             <FieldRow icon={<Footprints className="h-5 w-5" />} label="Pasos" sub="cantidad" value={data.steps} onChange={v => update('steps', v)} placeholder="0" />
-            <div className="border-t border-white/[0.06]" />
+            <div className="border-t border-white/[0.04]" />
             <FieldRow icon={<Bike className="h-5 w-5" />} label="Cardio" sub="descripción" value={data.cardio} onChange={v => update('cardio', v)} placeholder="Opcional" type="text" wide />
           </Section>
 
-          <Button
-            type="submit"
-            variant="submit"
-            size="full"
-            disabled={status === 'saving'}
-          >
-            <Send className="h-4 w-4" />
-            <span className="font-mono text-xs tracking-[0.06em] uppercase">
-              {status === 'saving' ? 'Guardando...' : 'Guardar Nutrición'}
-            </span>
-          </Button>
+          <div className="pt-4">
+            <Button
+              type="submit"
+              disabled={status === 'saving'}
+              className="w-full h-14 bg-white text-black hover:bg-neutral-200 hover:scale-[1.01] active:scale-[0.98] transition-all rounded-2xl border border-transparent shadow-[0_0_25px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3"
+            >
+              <Send className="h-4 w-4" />
+              <span className="font-mono text-[13px] font-bold tracking-[0.1em] uppercase">
+                {status === 'saving' ? 'Guardando...' : 'Guardar Nutrición'}
+              </span>
+            </Button>
+          </div>
 
           {status === 'success' && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-success/10 border border-success/20 rounded-lg p-3.5 text-center">
-              <p className="text-sm text-success">✅ Datos guardados correctamente. ¡Buen trabajo!</p>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
+              <p className="text-sm font-medium text-emerald-400 tracking-wide">Datos guardados con éxito.</p>
             </motion.div>
           )}
         </form>

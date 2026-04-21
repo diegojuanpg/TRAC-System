@@ -25,12 +25,15 @@ const UserContext = createContext<UserContextType>({
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Persist user across page reloads
   const [user, setUserState] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem("trac_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    // 🔥 MODO DESARROLLO (Vibe Coding): Atleta falso para saltar el login
+    return {
+      email: "atleta@demo.com",
+      name: "Atleta de Prueba",
+      picture: "https://ui-avatars.com/api/?name=Atleta+Prueba&background=random",
+      scriptUrl: "mock_url",
+      sheetId: "mock_sheet",
+      athleteName: "Atleta de Prueba",
+    };
   });
 
   const setUser = (u: User | null) => {

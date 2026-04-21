@@ -53,13 +53,13 @@ export const SurveySummary = ({ formData, onSubmit, onBack }: SurveySummaryProps
         ))}
       </div>
 
-      <div className="flex gap-2">
-        <Button variant="nav" size="icon" onClick={onBack} className="shrink-0 h-12 w-12">
+      <div className="flex gap-2 mt-4">
+        <Button onClick={onBack} className="shrink-0 h-12 w-12 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] text-white transition-all flex items-center justify-center p-0">
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <Button variant="submit" size="full" onClick={onSubmit} className="flex-1">
+        <Button onClick={onSubmit} className="flex-1 h-12 bg-white text-black hover:bg-neutral-200 hover:scale-[1.01] active:scale-95 transition-all rounded-xl border border-transparent shadow-[0_0_15px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2">
           <Send className="h-4 w-4" />
-          <span className="font-mono text-xs tracking-[0.06em] uppercase">Guardar</span>
+          <span className="font-mono text-xs font-bold tracking-[0.1em] uppercase">Guardar</span>
         </Button>
       </div>
     </div>

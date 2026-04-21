@@ -16,9 +16,7 @@ const Index = () => {
           className="text-center mb-16"
         >
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
-            Training Readiness
-            <br />
-            Assessment Center
+            Athlete Central
           </h1>
         </motion.div>
 
@@ -27,15 +25,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            onClick={() => navigate('/morning')}
+            onClick={() => navigate('/monitoring')}
             className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-center gap-4 text-left group hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300"
           >
             <div className="w-11 h-11 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <Activity className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
+              <LineChart className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Morning Survey</div>
-              <div className="text-xs text-muted-foreground leading-snug">Bienestar matutino. Perfil y recuperación.</div>
+              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Dashboard</div>
+              <div className="text-xs text-muted-foreground leading-snug">Analiza tus datos.</div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 transition-colors shrink-0" />
           </motion.button>
@@ -44,15 +42,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3 }}
-            onClick={() => navigate('/nutrition')}
+            onClick={() => navigate('/morning')}
             className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-center gap-4 text-left group hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300"
           >
             <div className="w-11 h-11 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <Utensils className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
+              <Activity className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Nutrition</div>
-              <div className="text-xs text-muted-foreground leading-snug">Nutrición. Peso, calorías y macros.</div>
+              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Morning Survey</div>
+              <div className="text-xs text-muted-foreground leading-snug">Cuestionario de bienestar. Rellenar por la mañana.</div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 transition-colors shrink-0" />
           </motion.button>
@@ -61,15 +59,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.4 }}
-            onClick={() => navigate('/monitoring')}
+            onClick={() => navigate('/nutrition')}
             className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-center gap-4 text-left group hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300"
           >
             <div className="w-11 h-11 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <LineChart className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
+              <Utensils className="h-5 w-5 text-muted-foreground/60 group-hover:text-foreground/80 transition-colors" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Athlete Monitoring</div>
-              <div className="text-xs text-muted-foreground leading-snug">Dashboard de readiness y estado actual.</div>
+              <div className="text-sm font-semibold text-foreground/90 mb-0.5">Nutrition</div>
+              <div className="text-xs text-muted-foreground leading-snug">Trackea tus calorías, macros y actividad.</div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 transition-colors shrink-0" />
           </motion.button>
