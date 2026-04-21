@@ -181,7 +181,11 @@ const MonitoringDashboard = () => {
               {user.name || user.email.split('@')[0]}
             </h1>
             <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-3">
-              <span className="font-mono text-[11px] text-white/60 font-medium">{data.date}</span>
+              <span className="font-mono text-[11px] text-white/60 font-medium">
+                {!isNaN(Number(data.date)) && Number(data.date) > 40000
+                  ? new Date(Math.round((Number(data.date) - 25569) * 86400 * 1000) + new Date().getTimezoneOffset() * 60000).toLocaleDateString('es-ES', { timeZone: 'UTC' }) 
+                  : data.date}
+              </span>
               {data.measurementTime && (
                 <span className="font-mono text-[10px] text-white/25 tracking-widest">{data.measurementTime}</span>
               )}
@@ -216,7 +220,7 @@ const MonitoringDashboard = () => {
                   value={formatZ(data.readinessZ)}
                   status={data.readinessZ > 0.5 ? 'optimal' : data.readinessZ > -0.5 ? 'optimal' : data.readinessZ > -1.5 ? 'neutral' : 'danger'}
                   percentage={getZScorePct(data.readinessZ)}
-                  type="zscore"
+                  type="readiness"
                   subLabel={
                     data.readinessZ > 0.5 ? 'Óptimo' :
                     data.readinessZ > -0.5 ? 'Bueno' :
@@ -227,9 +231,9 @@ const MonitoringDashboard = () => {
                 <PremiumGauge
                   label="Fatigue"
                   value={fat10}
-                  status={fat10Num >= 7 ? 'danger' : fat10Num >= 4 ? 'neutral' : 'detraining'}
-                  percentage={getFatiguePct(data.fatigueZ)}
-                  type="zscore"
+                  status={fat10Num >= 7 ? 'danger' : fat10Num >= 4 ? 'neutral' : 'optimal'}
+                  percentage={fat10Num * 10}
+                  type="fatigue_fitness"
                   subLabel={
                     fat10Num >= 8 ? 'Fatiga Alta' :
                     fat10Num >= 6 ? 'Moderada' :
@@ -240,8 +244,8 @@ const MonitoringDashboard = () => {
                   label="Fitness"
                   value={fit10}
                   status={fit10Num >= 7 ? 'optimal' : fit10Num >= 4 ? 'neutral' : 'danger'}
-                  percentage={getZScorePct(data.fitnessZ)}
-                  type="zscore"
+                  percentage={fit10Num * 10}
+                  type="fatigue_fitness"
                   subLabel={
                     fit10Num >= 8 ? 'Muy Alto' :
                     fit10Num >= 6 ? 'Alto' :

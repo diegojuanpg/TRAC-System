@@ -7,8 +7,8 @@ interface PremiumGaugeProps {
   value: number | string;
   status: StatusColor;
   percentage: number; // 0 to 100
-  type?: 'acwr' | 'zscore';
-  // ... other code above is handled by previous replace
+  type?: 'acwr' | 'zscore' | 'readiness' | 'fatigue_fitness';
+  subLabel?: string;
 }
 
 export const PremiumGauge = ({ label, value, status, percentage, type = 'zscore', subLabel }: PremiumGaugeProps) => {
@@ -49,6 +49,18 @@ export const PremiumGauge = ({ label, value, status, percentage, type = 'zscore'
                 <stop offset="42%" stopColor="#4ade80" />
                 <stop offset="68%" stopColor="#4ade80" />
                 <stop offset="80%" stopColor="#f87171" />
+                <stop offset="100%" stopColor="#f87171" />
+              </linearGradient>
+            ) : type === 'readiness' ? (
+              <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#f87171" />
+                <stop offset="50%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#4ade80" />
+              </linearGradient>
+            ) : type === 'fatigue_fitness' ? (
+              <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#4ade80" />
+                <stop offset="50%" stopColor="#fb923c" />
                 <stop offset="100%" stopColor="#f87171" />
               </linearGradient>
             ) : (
