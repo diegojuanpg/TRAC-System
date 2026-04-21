@@ -74,7 +74,7 @@ export const OrthoStep = ({ formData, updateFormData, onSkipToBW }: OrthoStepPro
       {onSkipToBW && (
         <button
           onClick={onSkipToBW}
-          className="mt-6 w-full py-3 rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono text-[10px] font-semibold tracking-[0.15em] text-muted-foreground/70 uppercase hover:bg-white/[0.06] hover:text-white transition-colors"
+          className="mt-6 w-full py-3 rounded-lg bg-white text-black font-mono text-[10px] font-bold tracking-[0.15em] uppercase hover:bg-white/90 transition-colors"
         >
           Saltar Mediciones (Ir a Peso)
         </button>
