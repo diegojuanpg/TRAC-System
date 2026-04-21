@@ -21,7 +21,7 @@ const CONFIG = {
   TRAC_DB: 'TRAC_database',
   TRAC_HEADER_ROW: 6,
   TRAC_DATA_START: 7,
-  TRAC_COL_COUNT: 66,     // A:BN
+  TRAC_COL_COUNT: 60,     // A:BH
 
   NUTR_DB: 'Nutrition_database',
   NUTR_HEADER_ROW: 6,
