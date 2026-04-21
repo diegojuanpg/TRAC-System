@@ -39,40 +39,12 @@ const getTrendLabel = (type: 'readiness' | 'fatigue' | 'fitness', val: number) =
 const MonitoringDashboard = () => {
   const { user } = useUser();
   const navigate = useNavigate();
-  const { data: realData, loading, error, refetch } = useMonitoringData();
-  const [useFake, setUseFake] = useState(false);
+  const { data, loading, error, refetch } = useMonitoringData();
 
   if (!user) return null;
 
-  const fakeData = {
-    date: new Date().toLocaleDateString('es-ES'),
-    measurementTime: "08:30",
-    alertLevel: 2,
-    ansProfile: "SNS_DOMINANT",
-    action: "Fatiga Simpática - Reducir intensidad drásticamente (cap RPE 6). Mantener volumen moderado.",
-    readinessZ: -1.8,
-    fatigueZ: -1.2,
-    fitnessZ: -2.0,
-    stfLtfRatio: 1.65,
-    stf: -2.2,
-    ltf: -0.4,
-    peripheralStress: 0.3,
-    centralStress: 1.8,
-    last7Days: [
-      { date: "2026-04-09", alertLevel: 0, ansProfile: "OPTIMAL" },
-      { date: "2026-04-10", alertLevel: 0, ansProfile: "OPTIMAL" },
-      { date: "2026-04-11", alertLevel: 1, ansProfile: "BALANCED_FATIGUED" },
-      { date: "2026-04-12", alertLevel: 0, ansProfile: "OPTIMAL" },
-      { date: "2026-04-13", alertLevel: 2, ansProfile: "SNS_DOMINANT" },
-      { date: "2026-04-14", alertLevel: 3, ansProfile: "BALANCED_FATIGUED" },
-      { date: "2026-04-15", alertLevel: 2, ansProfile: "SNS_DOMINANT" }
-    ]
-  };
-
-  const data = useFake ? fakeData : realData;
-
   const renderContent = () => {
-    if (loading && !useFake) {
+    if (loading) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
           <Activity className="w-8 h-8 text-white/20 animate-pulse" />
@@ -83,7 +55,7 @@ const MonitoringDashboard = () => {
       );
     }
 
-    if (error && !useFake) {
+    if (error) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4 px-6 text-center">
           <div className="font-mono text-sm text-red-400/80 uppercase tracking-widest">{error}</div>
@@ -406,12 +378,6 @@ const MonitoringDashboard = () => {
       <div className="absolute top-4 left-4 z-40 flex items-center gap-3">
         <button onClick={() => navigate('/')} className="text-white/40 hover:text-white transition-colors bg-white/5 p-2.5 rounded-full backdrop-blur-md">
           <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={() => setUseFake(!useFake)} 
-          className={`px-3 py-1.5 rounded-md backdrop-blur-md font-mono text-[10px] tracking-widest uppercase transition-colors border ${useFake ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-white/5 text-white/50 border-white/10 hover:text-white'}`}
-        >
-          {useFake ? 'Data Simulada ON' : 'Data Simulada OFF'}
         </button>
       </div>
 

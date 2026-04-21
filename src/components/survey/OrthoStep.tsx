@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 interface OrthoStepProps {
   formData: FormData;
   updateFormData: (key: string, value: number) => void;
+  onSkipToBW?: () => void;
 }
 
 const fields = [
@@ -13,7 +14,7 @@ const fields = [
   { id: 'hr4', label: 'HR4', desc: 'Promedio parado durante 2m.', placeholder: '75' },
 ];
 
-export const OrthoStep = ({ formData, updateFormData }: OrthoStepProps) => {
+export const OrthoStep = ({ formData, updateFormData, onSkipToBW }: OrthoStepProps) => {
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,6 +70,15 @@ export const OrthoStep = ({ formData, updateFormData }: OrthoStepProps) => {
           </div>
         ))}
       </div>
+
+      {onSkipToBW && (
+        <button
+          onClick={onSkipToBW}
+          className="mt-6 w-full py-3 rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono text-[10px] font-semibold tracking-[0.15em] text-muted-foreground/70 uppercase hover:bg-white/[0.06] hover:text-white transition-colors"
+        >
+          Saltar Mediciones (Ir a Peso)
+        </button>
+      )}
     </div>
   );
 };
