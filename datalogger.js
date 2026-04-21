@@ -163,7 +163,46 @@ function fetchHistory(ssId, maxRows) {
 // TRAC_database: WRITE
 // ══════════════════════════════════════════
 
+function enforceHeaders(ssId) {
+  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
+  const hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":" + endCol + CONFIG.TRAC_HEADER_ROW;
+  
+  const REQUIRED_HEADERS = "Date,Measurement_Time,Protocol_Confirmed,Context_Flag,Bodyweight,Tap Speed Test,Tap_Variance,Tap_Pauses,HR1,HR2,HR3,HR4,OrthoResponse,VagalRecovery,PosturalCost,POTS_Flag,Push Soreness,Pull Soreness,Legs Soreness,Lesión/Molestia,Cansancio,Carga de Trabajo Percibida,Recuperación Percibida,Horas de Sueño,Calidad de Sueño,Alimentacion,Motivación,Z-Tap Speed Test,Z-Tap Variance,Z-HR1,Z-HR2,Z-HR3,Z-HR4,Z-OrthoResponse,Z-VagalRecovery,Z-PosturalCost,Z-Push Soreness,Z-Pull Soreness,Z-Legs Soreness,Z-Lesión/Molestia,Z-Cansancio,Z-Carga de Trabajo Percibida,Z-Recuperación Percibida,Z-Horas de Sueño,Z-Calidad de Sueño,Z-Alimentacion,Z-Motivacion,Fatigue,Fitness,Readiness,Z-Readiness,Peripheral_Stress,Central_Stress,STF,LTF,STF_LTF_Ratio,ANS_Profile,Trend_7d,Alert_Level,TRAC_Action".split(",");
+  
+  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
+  const currentHeaders = hdrResp.values ? hdrResp.values[0] : [];
+  
+  let match = true;
+  if (currentHeaders.length !== REQUIRED_HEADERS.length) {
+    match = false;
+  } else {
+    for (let i = 0; i < REQUIRED_HEADERS.length; i++) {
+      if (String(currentHeaders[i] || '').trim() !== REQUIRED_HEADERS[i]) {
+        match = false;
+        break;
+      }
+    }
+  }
+  
+  if (!match) {
+    const paddedHeaders = [...REQUIRED_HEADERS];
+    // Pad to 100 columns to ensure we overwrite any old legacy columns (like the 66-column schema)
+    while (paddedHeaders.length < 100) paddedHeaders.push('');
+    const fullHdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":CV" + CONFIG.TRAC_HEADER_ROW;
+    
+    Sheets.Spreadsheets.Values.update(
+      { values: [paddedHeaders] },
+      ssId,
+      fullHdrRange,
+      { valueInputOption: 'RAW' }
+    );
+    console.log('[DataLogger] Headers did not match required format. Overwritten.');
+  }
+}
+
 function appendTRACRow(ssId, row) {
+  enforceHeaders(ssId);
+
   // Pad row to full column count
   while (row.length < CONFIG.TRAC_COL_COUNT) row.push('');
 
@@ -188,6 +227,8 @@ function appendTRACRow(ssId, row) {
 }
 
 function writeTRACData(ssId, rows) {
+  enforceHeaders(ssId);
+
   // Write ALL data rows (used when frontend recalculates everything)
   const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
 
