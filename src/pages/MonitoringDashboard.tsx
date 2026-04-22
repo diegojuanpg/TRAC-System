@@ -373,10 +373,13 @@ const MonitoringDashboard = () => {
   };
 
   return (
-    <DarkLayout className="flex flex-col min-h-screen bg-[#0E0E0E]">
+    <DarkLayout className="flex flex-col min-h-[100dvh]">
       {/* Botones Flotantes Superiores */}
       <div className="absolute top-4 left-4 z-40 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="text-white/40 hover:text-white transition-colors bg-white/5 p-2.5 rounded-full backdrop-blur-md">
+        <button
+          onClick={() => navigate('/')}
+          className="text-white/60 hover:text-white/90 active:scale-95 transition-all duration-150 bg-white/[0.07] hover:bg-white/[0.11] border border-white/[0.08] p-2.5 rounded-full backdrop-blur-md"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
       </div>

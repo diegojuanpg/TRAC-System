@@ -7,21 +7,30 @@ interface DarkLayoutProps {
 
 export const DarkLayout = ({ children, className = "" }: DarkLayoutProps) => {
   return (
-    <div className={`min-h-screen bg-[#050505] relative overflow-hidden ${className}`}>
-      {/* Diffused ambient glow — cool blue/white */}
-      <div className="fixed inset-0 pointer-events-none"
+    <div className={`min-h-[100dvh] bg-[#080810] relative overflow-hidden ${className}`}>
+      {/* Grain texture */}
+      <div
+        className="noise-overlay fixed inset-0 pointer-events-none"
+        style={{ opacity: 0.022, zIndex: 1 }}
+        aria-hidden="true"
+      />
+      {/* Ambient glow — primary indigo-blue */}
+      <div
+        className="fixed inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 60% 35%, hsla(210,60%,55%,0.06) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse 75% 50% at 62% 30%, hsla(215,65%,55%,0.1) 0%, transparent 60%)',
         }}
       />
-      <div className="fixed inset-0 pointer-events-none"
+      <div
+        className="fixed inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 40% at 40% 40%, hsla(220,50%,70%,0.04) 0%, transparent 55%)',
+          background: 'radial-gradient(ellipse 55% 40% at 32% 48%, hsla(228,52%,62%,0.06) 0%, transparent 58%)',
         }}
       />
-      <div className="fixed inset-0 pointer-events-none"
+      <div
+        className="fixed inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 90% 35% at 55% 45%, hsla(200,30%,85%,0.03) 0%, transparent 50%)',
+          background: 'radial-gradient(ellipse 90% 30% at 50% 55%, hsla(200,35%,80%,0.025) 0%, transparent 50%)',
         }}
       />
       {children}

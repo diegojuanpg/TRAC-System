@@ -128,8 +128,8 @@ const NutritionForm = () => {
 
 /* ── Section ── */
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-    <div className="font-mono text-[10px] font-bold tracking-[0.15em] text-muted-foreground/50 uppercase mb-4 pb-2.5 border-b border-white/[0.06]">
+  <div className="bg-white/[0.04] border border-white/[0.09] rounded-xl p-4">
+    <div className="font-mono text-[10px] font-semibold tracking-[0.12em] text-white/40 uppercase mb-4 pb-2.5 border-b border-white/[0.07]">
       {title}
     </div>
     {children}
@@ -150,7 +150,7 @@ const FieldRow = ({ icon, label, sub, unit, value, onChange, placeholder, type =
   wide?: boolean;
 }) => (
   <div className="flex items-center gap-3 py-2.5">
-    <div className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0 text-muted-foreground/60">
+    <div className="w-9 h-9 rounded-lg bg-white/[0.06] border border-white/[0.10] flex items-center justify-center shrink-0 text-white/55">
       {icon}
     </div>
     <div className="flex-1">
@@ -189,12 +189,12 @@ const MacroCard = ({ icon, label, unit, value, onChange }: {
   value: string;
   onChange: (v: string) => void;
 }) => (
-  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 relative focus-within:border-white/[0.15] transition-colors">
+  <div className="bg-white/[0.04] border border-white/[0.09] rounded-xl p-3 relative focus-within:border-white/[0.18] transition-colors duration-150">
     <div className="flex items-center gap-1.5 mb-1.5">
-      <div className="w-6 h-6 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-muted-foreground/60">
+      <div className="w-6 h-6 rounded-md bg-white/[0.07] border border-white/[0.10] flex items-center justify-center text-white/55">
         {icon}
       </div>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs text-white/45">{label}</span>
     </div>
     <input
       type="number"

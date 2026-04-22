@@ -113,14 +113,21 @@ const Login = () => {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-center"
         >
-          <div className="font-mono text-[11px] font-bold tracking-[0.28em] text-muted-foreground/40 uppercase mb-3">
+          <div className="font-mono text-[10px] font-semibold tracking-[0.26em] text-white/28 uppercase mb-4">
             Training Readiness
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            TRAC
-          </h1>
-          <p className="text-sm text-muted-foreground/60 mt-2">
-            Assessment Center
+          <div className="relative inline-block">
+            <div
+              className="absolute inset-0 blur-2xl rounded-full"
+              style={{ background: 'hsla(200,75%,52%,0.18)', transform: 'scale(1.4)' }}
+              aria-hidden="true"
+            />
+            <h1 className="relative text-5xl font-bold tracking-[-0.02em] text-foreground/95">
+              TRAC
+            </h1>
+          </div>
+          <p className="text-[13px] text-white/38 mt-3 tracking-wide">
+            Sistema de monitoreo atlético
           </p>
         </motion.div>
 
