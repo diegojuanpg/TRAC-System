@@ -1,21 +1,45 @@
 import { useState } from "react";
 import { useMonitoringData } from "@/hooks/useMonitoringData";
+import { type MonitoringData } from "@/hooks/useMonitoringData";
 import { DarkLayout } from "@/components/DarkLayout";
 import { useUser } from "@/context/UserContext";
-import { ChevronLeft, RefreshCw, Activity } from "lucide-react";
+import { ChevronLeft, RefreshCw, Activity, FlaskConical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PremiumGauge } from "@/components/ui/PremiumGauge";
 import { StressThermometer } from "@/components/ui/StressThermometer";
 
+const MOCK_DATA: MonitoringData = {
+  athleteName: "Demo Atleta",
+  date: "2026-04-24",
+  measurementTime: "07:32",
+  alertLevel: 2,
+  ansProfile: "BALANCED_FATIGUED",
+  action: "Fatiga moderada detectada. Se recomienda sesión de baja intensidad o trabajo técnico. Evitar esfuerzo máximo hoy.",
+  readinessZ: -0.8,
+  fatigueZ: 0.6,
+  fitnessZ: 0.4,
+  stfLtfRatio: 1.18,
+  stf: 0.5,
+  ltf: -0.3,
+  soreness: { push: 2, pull: 1, legs: 3, injury: 0 },
+  peripheralStress: 0.8,
+  centralStress: 0.4,
+  readinessTrend: [],
+  last7Days: [],
+};
+
+const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+const OUTFIT = "'Outfit', 'Plus Jakarta Sans', sans-serif";
+
 // Helpers
 const getStateConfig = (level: number, ansProfile: string) => {
-  if (ansProfile === 'INSUFFICIENT_DATA') return { text: "DATOS INSUFICIENTES", color: "text-muted-foreground", bg: "bg-[#1C1C1E]", border: "border-white/10" };
+  if (ansProfile === 'INSUFFICIENT_DATA') return { text: "DATOS INSUFICIENTES", color: "text-white/45", bg: "bg-white/[0.03]", border: "border-white/10" };
   switch (level) {
-    case 0: return { text: "ÓPTIMO", color: "text-[#4ade80]", bg: "bg-white/5", border: "border-white/10" };
-    case 1: return { text: "FATIGA LEVE", color: "text-yellow-400", bg: "bg-white/5", border: "border-white/10" };
-    case 2: return { text: "FATIGA MODERADA", color: "text-orange-400", bg: "bg-white/5", border: "border-white/10" };
-    case 3: return { text: "DESCANSO", color: "text-red-400", bg: "bg-white/5", border: "border-white/10" };
-    default: return { text: "ÓPTIMO", color: "text-[#4ade80]", bg: "bg-white/5", border: "border-white/10" };
+    case 0: return { text: "ÓPTIMO", color: "text-[#6ee7a0]", bg: "bg-white/[0.03]", border: "border-white/10" };
+    case 1: return { text: "FATIGA LEVE", color: "text-[#fcd34d]", bg: "bg-white/[0.03]", border: "border-white/10" };
+    case 2: return { text: "FATIGA MODERADA", color: "text-[#fdba74]", bg: "bg-white/[0.03]", border: "border-white/10" };
+    case 3: return { text: "DESCANSO", color: "text-[#fca5a5]", bg: "bg-white/[0.03]", border: "border-white/10" };
+    default: return { text: "ÓPTIMO", color: "text-[#6ee7a0]", bg: "bg-white/[0.03]", border: "border-white/10" };
   }
 };
 
@@ -25,13 +49,13 @@ const zTo10 = (z: number) => {
 
 const getTrendLabel = (type: 'readiness' | 'fatigue' | 'fitness', val: number) => {
   if (type === 'readiness') {
-    return val >= 0 ? { label: "↑ subiendo", color: "text-[#4ade80]" } : { label: "↓ alerta", color: "text-orange-400" };
+    return val >= 0 ? { label: "↑ subiendo", color: "text-[#6ee7a0]" } : { label: "↓ alerta", color: "text-[#fdba74]" };
   }
   if (type === 'fatigue') {
-    return val <= 4 ? { label: "↓ baja", color: "text-[#4ade80]" } : val <= 7 ? { label: "— moderada", color: "text-yellow-400" } : { label: "↑ alta", color: "text-red-400" };
+    return val <= 4 ? { label: "↓ baja", color: "text-[#6ee7a0]" } : val <= 7 ? { label: "— moderada", color: "text-[#fcd34d]" } : { label: "↑ alta", color: "text-[#fca5a5]" };
   }
   if (type === 'fitness') {
-    return val >= 7 ? { label: "↑ alto", color: "text-[#4ade80]" } : val >= 4 ? { label: "— moderado", color: "text-yellow-400" } : { label: "↓ bajo", color: "text-orange-400" };
+    return val >= 7 ? { label: "↑ alto", color: "text-[#6ee7a0]" } : val >= 4 ? { label: "— moderado", color: "text-[#fcd34d]" } : { label: "↓ bajo", color: "text-[#fdba74]" };
   }
   return { label: "", color: "text-white/50" };
 };
@@ -39,27 +63,42 @@ const getTrendLabel = (type: 'readiness' | 'fatigue' | 'fitness', val: number) =
 const MonitoringDashboard = () => {
   const { user } = useUser();
   const navigate = useNavigate();
-  const { data, loading, error, refetch } = useMonitoringData();
+  const { data: realData, loading, error, refetch } = useMonitoringData();
+  const [useMock, setUseMock] = useState(false);
+
+  const data = useMock ? MOCK_DATA : realData;
 
   if (!user) return null;
 
   const renderContent = () => {
-    if (loading) {
+    if (!useMock && loading) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-          <Activity className="w-8 h-8 text-white/20 animate-pulse" />
-          <div className="font-mono text-xs text-white/40 tracking-[0.2em] uppercase">
+          <Activity className="w-8 h-8 text-white/30 animate-pulse" />
+          <div
+            className="text-[11px] text-white/55 tracking-[0.22em] uppercase"
+            style={{ fontFamily: JAKARTA, fontWeight: 600 }}
+          >
             Cargando dashboard...
           </div>
         </div>
       );
     }
 
-    if (error) {
+    if (!useMock && error) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4 px-6 text-center">
-          <div className="font-mono text-sm text-red-400/80 uppercase tracking-widest">{error}</div>
-          <button onClick={refetch} className="text-xs font-mono text-white/50 hover:text-white transition-colors flex items-center gap-2">
+          <div
+            className="text-[13px] text-red-300/90 uppercase tracking-[0.18em]"
+            style={{ fontFamily: JAKARTA, fontWeight: 600 }}
+          >
+            {error}
+          </div>
+          <button
+            onClick={refetch}
+            className="text-[12px] text-white/60 hover:text-white transition-colors flex items-center gap-2"
+            style={{ fontFamily: JAKARTA }}
+          >
             <RefreshCw className="w-3 h-3" /> Reintentar
           </button>
         </div>
@@ -74,19 +113,19 @@ const MonitoringDashboard = () => {
     const fit10 = fit10Num.toFixed(1);
 
     const getFat10Color = (val: number) => {
-      if (val >= 7.0) return 'text-red-400';
-      if (val >= 4.0) return 'text-yellow-400';
-      return 'text-[#4ade80]';
+      if (val >= 7.0) return 'text-[#fca5a5]';
+      if (val >= 4.0) return 'text-[#fcd34d]';
+      return 'text-[#6ee7a0]';
     };
 
     const getFit10Color = (val: number) => {
-      if (val >= 7.0) return 'text-[#4ade80]';
-      if (val >= 4.0) return 'text-yellow-400';
-      return 'text-red-400';
+      if (val >= 7.0) return 'text-[#6ee7a0]';
+      if (val >= 4.0) return 'text-[#fcd34d]';
+      return 'text-[#fca5a5]';
     };
 
-    const readinessColorClass = data.readinessZ < -1.5 ? 'text-red-400' : data.readinessZ > 0 ? 'text-[#4ade80]' : 'text-yellow-400';
-    const readinessGlow = data.readinessZ < -1.5 ? 'rgba(248,113,113,0.5)' : data.readinessZ > 0 ? 'rgba(74,222,128,0.5)' : 'rgba(250,204,21,0.5)';
+    const readinessColorClass = data.readinessZ < -1.5 ? 'text-[#fca5a5]' : data.readinessZ > 0 ? 'text-[#6ee7a0]' : 'text-[#fcd34d]';
+    const readinessGlow = data.readinessZ < -1.5 ? 'rgba(252,165,165,0.4)' : data.readinessZ > 0 ? 'rgba(110,231,160,0.4)' : 'rgba(252,211,77,0.4)';
 
     // Helpers for coloring and gauges
     const getAcwrStatus = (val: number) => {
@@ -147,28 +186,62 @@ const MonitoringDashboard = () => {
         
         {/* ── HEADER ─────────────────────────────── */}
         <div className="mb-6">
-          <p className="font-mono text-[9px] tracking-[0.3em] text-white/25 uppercase mb-2">TRAC · Monitoring</p>
-          <div className="flex items-end justify-between">
-            <h1 className="font-sans font-bold text-2xl text-white/95 leading-none truncate">
-              {user.name || user.email.split('@')[0]}
-            </h1>
-            <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-3">
-              <span className="font-mono text-[11px] text-white/60 font-medium">
+          <div className="flex items-center justify-between mb-3">
+            <span
+              className="text-[11px] font-semibold tracking-[0.18em] text-white/70"
+              style={{ fontFamily: JAKARTA }}
+            >
+              Monitoring
+            </span>
+            <span
+              className="text-[11px] font-semibold tracking-[0.18em] text-white/70"
+              style={{ fontFamily: JAKARTA }}
+            >
+              TRAC
+            </span>
+          </div>
+          <div className="flex items-end justify-between gap-3">
+            <div className="relative inline-block min-w-0">
+              <div
+                className="absolute inset-0 blur-2xl pointer-events-none"
+                style={{ background: 'hsla(0,0%,100%,0.18)', transform: 'scale(1.15)' }}
+                aria-hidden="true"
+              />
+              <h1
+                className="relative text-[32px] text-white leading-[1.0] truncate"
+                style={{ fontFamily: OUTFIT, fontWeight: 600, letterSpacing: '-0.03em' }}
+              >
+                {user.name || user.email.split('@')[0]}
+              </h1>
+            </div>
+            <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+              <span
+                className="text-[11px] text-white/75 font-medium"
+                style={{ fontFamily: JAKARTA }}
+              >
                 {!isNaN(Number(data.date)) && Number(data.date) > 40000
-                  ? new Date(Math.round((Number(data.date) - 25569) * 86400 * 1000) + new Date().getTimezoneOffset() * 60000).toLocaleDateString('es-ES', { timeZone: 'UTC' }) 
+                  ? new Date(Math.round((Number(data.date) - 25569) * 86400 * 1000) + new Date().getTimezoneOffset() * 60000).toLocaleDateString('es-ES', { timeZone: 'UTC' })
                   : data.date}
               </span>
               {data.measurementTime && (
-                <span className="font-mono text-[10px] text-white/25 tracking-widest">{data.measurementTime}</span>
+                <span
+                  className="text-[10px] text-white/40 tracking-[0.14em]"
+                  style={{ fontFamily: JAKARTA }}
+                >
+                  {data.measurementTime}
+                </span>
               )}
             </div>
           </div>
-          <div className="mt-3 h-px bg-gradient-to-r from-white/10 via-white/[0.05] to-transparent" />
+          <div className="mt-4 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         </div>
 
         {/* ── ESTADO DEL ATLETA ─────────────────── */}
         <div className="text-center">
-          <span className="font-sans text-[11px] font-semibold text-white/55 uppercase tracking-[0.18em]">
+          <span
+            className="text-[11px] font-semibold text-white/65 uppercase tracking-[0.2em]"
+            style={{ fontFamily: JAKARTA }}
+          >
             Estado del Atleta
           </span>
         </div>
@@ -231,7 +304,10 @@ const MonitoringDashboard = () => {
 
         {/* ── CARGA DE ENTRENAMIENTO ───────────── */}
         <div className="text-center">
-          <span className="font-sans text-[11px] font-semibold text-white/55 uppercase tracking-[0.18em]">
+          <span
+            className="text-[11px] font-semibold text-white/65 uppercase tracking-[0.2em]"
+            style={{ fontFamily: JAKARTA }}
+          >
             Carga de Entrenamiento
           </span>
         </div>
@@ -299,7 +375,7 @@ const MonitoringDashboard = () => {
             stressMsg = 'Sin estrés significativo detectado. El sistema nervioso y muscular se encuentran dentro de parámetros normales.';
           }
 
-          const alertColor = data.alertLevel === 1 ? '#4ade80' : data.alertLevel === 2 ? '#4ade80' : data.alertLevel === 3 ? '#facc15' : data.alertLevel === 4 ? '#fb923c' : data.alertLevel >= 5 ? '#f87171' : '#4ade80';
+          const alertColor = data.alertLevel === 1 ? '#6ee7a0' : data.alertLevel === 2 ? '#6ee7a0' : data.alertLevel === 3 ? '#fcd34d' : data.alertLevel === 4 ? '#fdba74' : data.alertLevel >= 5 ? '#fca5a5' : '#6ee7a0';
           const alertLabel = data.alertLevel === 1 ? 'ÓPTIMO' : data.alertLevel === 2 ? 'BUENO' : data.alertLevel === 3 ? 'PRECAUCIÓN' : data.alertLevel === 4 ? 'ALERTA' : data.alertLevel >= 5 ? 'CRÍTICO' : 'ÓPTIMO';
 
           return (
@@ -375,12 +451,42 @@ const MonitoringDashboard = () => {
   return (
     <DarkLayout className="flex flex-col min-h-[100dvh]">
       {/* Botones Flotantes Superiores */}
-      <div className="absolute top-4 left-4 z-40 flex items-center gap-3">
+      <div className="absolute top-5 left-5 right-5 z-40 flex items-center justify-between">
         <button
           onClick={() => navigate('/')}
-          className="text-white/60 hover:text-white/90 active:scale-95 transition-all duration-150 bg-white/[0.07] hover:bg-white/[0.11] border border-white/[0.08] p-2.5 rounded-full backdrop-blur-md"
+          aria-label="Volver"
+          className="text-white/70 hover:text-white active:scale-95 transition-all duration-150 flex items-center justify-center w-10 h-10 rounded-full"
+          style={{
+            background: 'linear-gradient(135deg, hsla(0,0%,100%,0.1) 0%, hsla(0,0%,100%,0.04) 100%)',
+            backdropFilter: 'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+            border: '1px solid hsla(0,0%,100%,0.18)',
+            boxShadow: 'inset 0 1px 0 hsla(0,0%,100%,0.25)',
+          }}
         >
           <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setUseMock(v => !v)}
+          aria-label="Datos de prueba"
+          className="active:scale-95 transition-all duration-150 flex items-center gap-2 h-9 px-3.5 rounded-full"
+          style={{
+            background: useMock
+              ? 'linear-gradient(135deg, hsla(45,80%,65%,0.22) 0%, hsla(45,80%,65%,0.1) 100%)'
+              : 'linear-gradient(135deg, hsla(0,0%,100%,0.1) 0%, hsla(0,0%,100%,0.04) 100%)',
+            backdropFilter: 'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+            border: useMock ? '1px solid hsla(45,80%,65%,0.4)' : '1px solid hsla(0,0%,100%,0.18)',
+            boxShadow: 'inset 0 1px 0 hsla(0,0%,100%,0.25)',
+            color: useMock ? 'hsla(45,80%,72%,1)' : 'hsla(0,0%,100%,0.6)',
+            fontFamily: JAKARTA,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+          }}
+        >
+          <FlaskConical className="w-3.5 h-3.5" />
+          {useMock ? 'DEMO' : 'DEMO'}
         </button>
       </div>
 

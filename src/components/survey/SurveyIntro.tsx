@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Info, ArrowRight, Sun } from "lucide-react";
+import { ArrowRight, Sun } from "lucide-react";
+
+const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+const OUTFIT  = "'Outfit', 'Plus Jakarta Sans', sans-serif";
 
 interface SurveyIntroProps {
   onStart: () => void;
@@ -10,45 +12,127 @@ interface SurveyIntroProps {
 export const SurveyIntro = ({ onStart, totalSteps }: SurveyIntroProps) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="w-full max-w-sm sm:max-w-md"
     >
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] p-6 sm:p-8 flex flex-col relative overflow-hidden backdrop-blur-md shadow-2xl">
-        {/* Subtle background glow */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
+      <div
+        className="relative overflow-hidden rounded-[28px] flex flex-col"
+        style={{
+          padding: '28px 32px 32px',
+          background: 'linear-gradient(135deg, hsla(0,0%,100%,0.14) 0%, hsla(0,0%,100%,0.04) 55%, hsla(0,0%,100%,0.09) 100%)',
+          backdropFilter: 'blur(44px) saturate(170%)',
+          WebkitBackdropFilter: 'blur(44px) saturate(170%)',
+          border: '1px solid hsla(0,0%,100%,0.2)',
+          boxShadow: '0 24px 70px -10px hsla(0,0%,0%,0.6), inset 0 1px 0 hsla(0,0%,100%,0.3), inset 0 0 0 1px hsla(0,0%,100%,0.06)',
+        }}
+      >
+        {/* Top sheen */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, hsla(0,0%,100%,0.55), transparent)' }}
+        />
+        {/* Inner radial sheen */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 85% 45% at 50% 0%, hsla(0,0%,100%,0.14) 0%, transparent 62%)' }}
+        />
 
-        <div className="flex flex-col items-center gap-4 mb-8 relative z-10 text-center">
-          <div className="relative w-14 h-14 bg-gradient-to-b from-amber-500/20 to-orange-500/5 border border-amber-500/20 rounded-[18px] flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.1)] shrink-0 mb-1">
-            <Sun className="w-7 h-7 text-amber-500 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white m-0">
+        {/* Label row */}
+        <div className="flex items-center justify-between mb-7 relative">
+          <span className="text-[11px] font-semibold tracking-[0.18em] text-white/70 uppercase" style={{ fontFamily: JAKARTA }}>
             Morning Survey
+          </span>
+          <span className="text-[11px] font-semibold tracking-[0.18em] text-white/70 uppercase" style={{ fontFamily: JAKARTA }}>
+            TRAC
+          </span>
+        </div>
+
+        {/* Icon */}
+        <div className="flex justify-center mb-4 relative">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, hsla(0,0%,100%,0.16) 0%, hsla(0,0%,100%,0.05) 100%)',
+              border: '1px solid hsla(0,0%,100%,0.22)',
+              boxShadow: 'inset 0 1px 0 hsla(0,0%,100%,0.3)',
+            }}
+          >
+            <Sun className="w-5 h-5 text-white/85" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="relative inline-block mb-2 text-center">
+          <div
+            className="absolute inset-0 blur-2xl pointer-events-none"
+            style={{ background: 'hsla(0,0%,100%,0.16)', transform: 'scale(1.2)' }}
+            aria-hidden="true"
+          />
+          <h1
+            className="relative text-[36px] leading-[1.05] text-white text-center"
+            style={{ fontFamily: OUTFIT, fontWeight: 600, letterSpacing: '-0.025em' }}
+          >
+            Bienestar matinal
           </h1>
         </div>
 
-        <div className="mb-8 relative z-10 flex flex-col items-center">
-          <p className="text-[13px] sm:text-sm text-white/50 leading-relaxed font-light mb-6 text-center max-w-[280px] sm:max-w-none">
-            Este cuestionario evalúa la respuesta de tu cuerpo al entrenamiento. Se compone de preguntas subjetivas y métricas objetivas.
+        {/* Description */}
+        <p
+          className="text-[13px] text-white/60 leading-relaxed text-center mb-5"
+          style={{ fontFamily: JAKARTA }}
+        >
+          Evalúa la respuesta de tu cuerpo al entrenamiento mediante preguntas subjetivas y métricas objetivas.
+        </p>
+
+        {/* Info note */}
+        <div
+          className="relative rounded-xl p-3.5 mb-7"
+          style={{
+            background: 'hsla(0,0%,100%,0.05)',
+            border: '1px solid hsla(0,0%,100%,0.12)',
+          }}
+        >
+          <p className="text-[11px] text-white/55 leading-relaxed" style={{ fontFamily: JAKARTA }}>
+            <span className="font-semibold text-white/75 block mb-1 uppercase tracking-[0.12em] text-[10px]">
+              Aviso de precisión
+            </span>
+            La sección objetiva es opcional, pero omitirla reduce la precisión al predecir fatiga y readiness.
           </p>
-          
-          <div className="bg-amber-500/[0.05] border border-amber-500/10 rounded-xl p-3.5 flex gap-3 items-start text-left w-full">
-             <Info className="w-4 h-4 text-amber-500/60 shrink-0 mt-[1px]" />
-             <p className="text-[11px] sm:text-xs text-amber-500/70 leading-relaxed m-0 pr-2">
-               <span className="font-semibold tracking-wide uppercase text-amber-500/80 block mb-1">Aviso de Precisión</span>
-               Aunque la sección de métricas objetivas es opcional, omitirla reducirá significativamente la precisión del sistema al predecir fatiga y readiness.
-             </p>
-          </div>
         </div>
 
-        <button 
-          onClick={onStart} 
-          className="relative z-10 group w-full h-12 sm:h-14 flex items-center justify-center gap-2 rounded-xl bg-white text-black transition-all duration-300 hover:bg-white/90 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+        {/* CTA */}
+        <motion.button
+          onClick={onStart}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="relative w-full flex items-center justify-center gap-2 rounded-full text-white overflow-hidden group"
+          style={{
+            fontFamily: JAKARTA,
+            fontWeight: 600,
+            fontSize: 14,
+            letterSpacing: '0.01em',
+            padding: '14px 24px',
+            background: 'linear-gradient(135deg, hsla(0,0%,100%,0.16) 0%, hsla(0,0%,100%,0.06) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1.5px solid hsla(0,0%,100%,0.4)',
+            boxShadow: '0 6px 18px hsla(0,0%,0%,0.3), inset 0 1px 0 hsla(0,0%,100%,0.35)',
+          }}
         >
-          <span className="font-mono text-[11px] sm:text-[12px] tracking-[0.1em] uppercase font-bold">Comenzar Test</span>
-          <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-        </button>
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-4 top-0 h-px opacity-70"
+            style={{ background: 'linear-gradient(90deg, transparent, hsla(0,0%,100%,0.7), transparent)' }}
+          />
+          Comenzar
+          <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+        </motion.button>
+
       </div>
     </motion.div>
   );

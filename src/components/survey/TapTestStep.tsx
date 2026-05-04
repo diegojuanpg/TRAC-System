@@ -125,9 +125,6 @@ export const TapTestStep = ({ formData, updateFormData }: TapTestStepProps) => {
           >
             TAP<br />INICIAR
           </button>
-          <div className="font-mono text-xs font-medium text-muted-foreground/60 tracking-[0.25em] mt-8 uppercase">
-            10 segundos · mano dominante
-          </div>
         </div>
       )}
 

@@ -2,6 +2,8 @@ import { CONTEXT_OPTIONS } from "@/data/surveySteps";
 import { cn } from "@/lib/utils";
 import { CircleDot, Plane, Zap, Wine, Thermometer, Circle, Bandage, MoreHorizontal, type LucideIcon } from "lucide-react";
 
+const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+
 const iconMap: Record<string, LucideIcon> = {
   'circle-dot': CircleDot,
   'plane': Plane,
@@ -45,10 +47,13 @@ export const ContextStep = ({ value, onChange }: ContextStepProps) => {
             )}>
               {Icon && <Icon className="h-6 w-6" strokeWidth={isSelected ? 2 : 1.5} />}
             </div>
-            <div className={cn(
-              "font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-300",
-              isSelected ? "text-white font-bold" : "text-white/50 font-medium"
-            )}>
+            <div
+              className={cn(
+                "text-[11px] uppercase tracking-[0.12em] transition-colors duration-300",
+                isSelected ? "text-white font-semibold" : "text-white/50 font-medium"
+              )}
+              style={{ fontFamily: JAKARTA }}
+            >
               {opt.label}
             </div>
           </button>

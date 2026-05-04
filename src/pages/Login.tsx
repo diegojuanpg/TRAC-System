@@ -1,6 +1,6 @@
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 // Google Identity Services is loaded via script tag in index.html
@@ -14,6 +14,8 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 const ROUTER_URL = import.meta.env.VITE_ROUTER_SCRIPT_URL as string;
 const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
 
+const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+
 const Login = () => {
   const { setUser } = useUser();
   const navigate = useNavigate();
@@ -21,15 +23,27 @@ const Login = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Mouse-parallax tilt
+  const cardRef = useRef<HTMLDivElement>(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const rotateX = useSpring(useTransform(my, [-0.5, 0.5], [3, -3]), { stiffness: 150, damping: 20 });
+  const rotateY = useSpring(useTransform(mx, [-0.5, 0.5], [-3, 3]), { stiffness: 150, damping: 20 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    mx.set((e.clientX - rect.left) / rect.width - 0.5);
+    my.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+  const handleMouseLeave = () => {
+    mx.set(0);
+    my.set(0);
+  };
+
   useEffect(() => {
     const init = () => {
-      if (!window.google) return;
-
-      if (!CLIENT_ID) {
-        console.error("Missing VITE_GOOGLE_CLIENT_ID in .env");
-        setLoginError("Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env local.");
-        return;
-      }
+      if (!window.google || !CLIENT_ID) return;
 
       clientRef.current = window.google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
@@ -98,23 +112,26 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full relative overflow-hidden flex items-center justify-center px-5 bg-[#07070b]">
-      {/* Animated blurred light blobs — white tones */}
+    <div
+      className="min-h-[100dvh] w-full relative overflow-hidden flex items-center justify-center px-5 bg-black"
+      style={{ fontFamily: JAKARTA }}
+    >
+      {/* Animated pure-white blurred lights */}
       <motion.div
         aria-hidden="true"
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: '60vmax',
-          height: '60vmax',
-          top: '-20vmax',
+          width: '55vmax',
+          height: '55vmax',
+          top: '-18vmax',
           left: '-10vmax',
-          background: 'radial-gradient(circle, hsla(0,0%,100%,0.28) 0%, hsla(0,0%,100%,0.08) 35%, transparent 70%)',
-          filter: 'blur(60px)',
+          background: 'radial-gradient(circle, hsla(0,0%,100%,0.45) 0%, hsla(0,0%,100%,0.12) 32%, transparent 68%)',
+          filter: 'blur(70px)',
         }}
         animate={{
-          x: [0, 80, -40, 60, 0],
-          y: [0, 60, 120, 40, 0],
-          scale: [1, 1.15, 0.95, 1.1, 1],
+          x: [0, 90, -40, 70, 0],
+          y: [0, 70, 130, 50, 0],
+          scale: [1, 1.15, 0.95, 1.12, 1],
         }}
         transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -122,17 +139,17 @@ const Login = () => {
         aria-hidden="true"
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: '55vmax',
-          height: '55vmax',
-          bottom: '-20vmax',
-          right: '-15vmax',
-          background: 'radial-gradient(circle, hsla(210,20%,95%,0.22) 0%, hsla(210,20%,95%,0.06) 40%, transparent 70%)',
-          filter: 'blur(70px)',
+          width: '50vmax',
+          height: '50vmax',
+          bottom: '-18vmax',
+          right: '-14vmax',
+          background: 'radial-gradient(circle, hsla(0,0%,100%,0.4) 0%, hsla(0,0%,100%,0.1) 35%, transparent 70%)',
+          filter: 'blur(80px)',
         }}
         animate={{
-          x: [0, -60, 40, -80, 0],
-          y: [0, -50, -100, -30, 0],
-          scale: [1, 1.1, 1.2, 0.95, 1],
+          x: [0, -70, 40, -90, 0],
+          y: [0, -60, -110, -30, 0],
+          scale: [1, 1.12, 1.22, 0.95, 1],
         }}
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -142,61 +159,66 @@ const Login = () => {
         style={{
           width: '40vmax',
           height: '40vmax',
-          top: '30%',
+          top: '40%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, hsla(0,0%,100%,0.18) 0%, hsla(0,0%,100%,0.04) 45%, transparent 75%)',
-          filter: 'blur(80px)',
+          background: 'radial-gradient(circle, hsla(0,0%,100%,0.32) 0%, hsla(0,0%,100%,0.08) 40%, transparent 72%)',
+          filter: 'blur(90px)',
         }}
         animate={{
-          x: [-30, 40, -20, 30, -30],
-          y: [-20, 30, 60, 10, -20],
-          scale: [1, 1.2, 0.9, 1.15, 1],
+          x: [-30, 50, -20, 40, -30],
+          y: [-20, 40, 70, 10, -20],
+          scale: [1, 1.22, 0.9, 1.18, 1],
         }}
-        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         aria-hidden="true"
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: '35vmax',
-          height: '35vmax',
-          bottom: '10%',
-          left: '20%',
-          background: 'radial-gradient(circle, hsla(220,15%,90%,0.14) 0%, transparent 70%)',
-          filter: 'blur(90px)',
+          width: '32vmax',
+          height: '32vmax',
+          bottom: '8%',
+          left: '15%',
+          background: 'radial-gradient(circle, hsla(0,0%,100%,0.28) 0%, transparent 70%)',
+          filter: 'blur(100px)',
         }}
         animate={{
-          x: [0, 50, -30, 20, 0],
-          y: [0, -40, 20, -60, 0],
-          scale: [1, 1.1, 1.25, 0.95, 1],
+          x: [0, 60, -30, 20, 0],
+          y: [0, -50, 20, -70, 0],
+          scale: [1, 1.1, 1.28, 0.95, 1],
         }}
         transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* Grain texture */}
+      {/* Subtle grain */}
       <div
         className="noise-overlay fixed inset-0 pointer-events-none"
-        style={{ opacity: 0.03, zIndex: 1 }}
+        style={{ opacity: 0.035, zIndex: 1 }}
         aria-hidden="true"
       />
 
       {/* Liquid Glass card */}
       <motion.div
+        ref={cardRef}
         initial={{ opacity: 0, y: 24, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-sm"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ rotateX, rotateY, transformPerspective: 1000 }}
+        className="relative z-10 w-full max-w-md"
       >
         <div
-          className="relative rounded-[28px] overflow-hidden"
+          className="relative rounded-[32px] overflow-hidden transition-shadow duration-300 hover:shadow-[0_30px_90px_-10px_hsla(0,0%,0%,0.7),0_14px_40px_-8px_hsla(0,0%,0%,0.5)]"
           style={{
-            background: 'linear-gradient(135deg, hsla(0,0%,100%,0.12) 0%, hsla(0,0%,100%,0.04) 100%)',
-            backdropFilter: 'blur(40px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
-            border: '1px solid hsla(0,0%,100%,0.18)',
+            background:
+              'linear-gradient(135deg, hsla(0,0%,100%,0.14) 0%, hsla(0,0%,100%,0.04) 55%, hsla(0,0%,100%,0.09) 100%)',
+            backdropFilter: 'blur(44px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(44px) saturate(170%)',
+            border: '1px solid hsla(0,0%,100%,0.2)',
             boxShadow:
-              '0 20px 60px -10px hsla(0,0%,0%,0.5), 0 8px 24px -8px hsla(0,0%,0%,0.3), inset 0 1px 0 hsla(0,0%,100%,0.25), inset 0 -1px 0 hsla(0,0%,100%,0.05)',
+              '0 24px 70px -10px hsla(0,0%,0%,0.6), 0 10px 30px -8px hsla(0,0%,0%,0.4), inset 0 1px 0 hsla(0,0%,100%,0.3), inset 0 0 0 1px hsla(0,0%,100%,0.06), inset 0 -1px 0 hsla(0,0%,100%,0.05)',
           }}
         >
           {/* Top highlight sheen */}
@@ -205,7 +227,7 @@ const Login = () => {
             className="absolute inset-x-0 top-0 h-px"
             style={{
               background:
-                'linear-gradient(90deg, transparent 0%, hsla(0,0%,100%,0.5) 50%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, hsla(0,0%,100%,0.6) 50%, transparent 100%)',
             }}
           />
           {/* Inner radial sheen */}
@@ -214,51 +236,79 @@ const Login = () => {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(ellipse 80% 40% at 50% 0%, hsla(0,0%,100%,0.12) 0%, transparent 60%)',
+                'radial-gradient(ellipse 85% 45% at 50% 0%, hsla(0,0%,100%,0.14) 0%, transparent 62%)',
             }}
           />
 
-          <div className="relative flex flex-col items-center gap-8 px-8 py-10">
-            {/* Logo */}
-            <div className="text-center">
-              <div className="font-mono text-[10px] font-semibold tracking-[0.26em] text-white/45 uppercase mb-3">
-                Training Readiness
-              </div>
-              <div className="relative inline-block">
-                <div
-                  className="absolute inset-0 blur-2xl rounded-full"
-                  style={{ background: 'hsla(0,0%,100%,0.2)', transform: 'scale(1.4)' }}
-                  aria-hidden="true"
-                />
-                <h1 className="relative text-5xl font-bold tracking-[-0.02em] text-white">
-                  TRAC
-                </h1>
-              </div>
-              <p className="text-[13px] text-white/60 mt-3 tracking-wide">
-                Sistema de monitoreo atlético
-              </p>
+          <div className="relative px-8 py-9">
+            {/* Top row labels */}
+            <div className="flex items-center justify-between mb-8">
+              <span
+                className="text-[11px] font-semibold tracking-[0.18em] text-white/70"
+                style={{ fontFamily: JAKARTA }}
+              >
+                Athlete Monitoring
+              </span>
+              <span
+                className="text-[11px] font-semibold tracking-[0.18em] text-white/70"
+                style={{ fontFamily: JAKARTA }}
+              >
+                TRAC
+              </span>
             </div>
 
-            {/* Login button — glass pill */}
-            <button
+            {/* Title */}
+            <div className="relative inline-block mb-2">
+              <div
+                className="absolute inset-0 blur-2xl pointer-events-none"
+                style={{
+                  background: 'hsla(0,0%,100%,0.18)',
+                  transform: 'scale(1.15)',
+                }}
+                aria-hidden="true"
+              />
+              <h1
+                className="relative text-[52px] leading-[1.0] text-white"
+                style={{
+                  fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 600,
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                Log In
+              </h1>
+            </div>
+            <p
+              className="text-[13px] text-white/65 mb-6 whitespace-nowrap"
+              style={{ fontFamily: JAKARTA }}
+            >
+              Bienvenido de vuelta. Por favor, inicia sesión en tu cuenta.
+            </p>
+
+            {/* Google pill button — outlined liquid glass */}
+            <motion.button
               onClick={handleLogin}
               disabled={loading}
-              className="w-full relative flex items-center justify-center gap-3 font-medium text-sm px-6 py-3.5 rounded-2xl text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden group"
+              whileHover={{ scale: 1.03, boxShadow: '0 10px 30px hsla(0,0%,0%,0.4), inset 0 1px 0 hsla(0,0%,100%,0.45)' }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="w-full relative flex items-center justify-center gap-3 font-semibold text-[15px] px-6 py-4 rounded-full text-white disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, hsla(0,0%,100%,0.18) 0%, hsla(0,0%,100%,0.08) 100%)',
+                fontFamily: JAKARTA,
+                background: 'linear-gradient(135deg, hsla(0,0%,100%,0.16) 0%, hsla(0,0%,100%,0.06) 100%)',
                 backdropFilter: 'blur(20px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid hsla(0,0%,100%,0.25)',
+                border: '1.5px solid hsla(0,0%,100%,0.4)',
                 boxShadow:
-                  '0 4px 16px hsla(0,0%,0%,0.25), inset 0 1px 0 hsla(0,0%,100%,0.3)',
+                  '0 6px 18px hsla(0,0%,0%,0.3), inset 0 1px 0 hsla(0,0%,100%,0.35)',
               }}
             >
               <span
                 aria-hidden="true"
-                className="absolute inset-x-3 top-0 h-px opacity-70"
+                className="absolute inset-x-4 top-0 h-px opacity-70"
                 style={{
                   background:
-                    'linear-gradient(90deg, transparent, hsla(0,0%,100%,0.6), transparent)',
+                    'linear-gradient(90deg, transparent, hsla(0,0%,100%,0.7), transparent)',
                 }}
               />
               {loading ? (
@@ -280,26 +330,41 @@ const Login = () => {
                   Continuar con Google
                 </>
               )}
-            </button>
+            </motion.button>
 
             {/* Error */}
-            {loginError && (
+            {loginError && !loginError.includes('VITE_GOOGLE_CLIENT_ID') && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full rounded-xl p-3.5 text-center"
+                className="w-full rounded-xl p-3 text-center mt-5"
                 style={{
                   background: 'hsla(0,70%,50%,0.12)',
                   border: '1px solid hsla(0,70%,60%,0.3)',
                   backdropFilter: 'blur(10px)',
                 }}
               >
-                <p className="text-sm text-red-300">{loginError}</p>
+                <p className="text-[13px] text-red-300" style={{ fontFamily: JAKARTA }}>
+                  {loginError}
+                </p>
               </motion.div>
             )}
 
-            <p className="text-[11px] text-white/40 text-center">
-              Solo acceden las cuentas autorizadas
+            {/* Divider */}
+            <div
+              aria-hidden="true"
+              className="h-px mt-6 mb-4"
+              style={{
+                background:
+                  'linear-gradient(90deg, transparent 0%, hsla(0,0%,100%,0.12) 50%, transparent 100%)',
+              }}
+            />
+
+            <p
+              className="text-center text-[12px] text-white/50"
+              style={{ fontFamily: JAKARTA }}
+            >
+              Utiliza la misma cuenta que en tu Sheet
             </p>
           </div>
         </div>

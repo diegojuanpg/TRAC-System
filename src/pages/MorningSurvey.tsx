@@ -16,6 +16,9 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import { useSubmitToScript } from "@/hooks/useSubmitToScript";
 
+const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+const OUTFIT = "'Outfit', 'Plus Jakarta Sans', sans-serif";
+
 type Phase = 'intro' | 'steps' | 'summary' | 'success';
 
 const MorningSurvey = () => {
@@ -140,7 +143,7 @@ const MorningSurvey = () => {
       {phase === 'steps' && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-white/[0.06] z-50">
           <motion.div
-            className="h-full bg-foreground/60"
+            className="h-full bg-white/80"
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           />
@@ -149,12 +152,21 @@ const MorningSurvey = () => {
 
       {/* Top nav */}
       <div className="fixed top-0 left-0 right-0 px-5 pt-5 flex items-center justify-between z-40">
-        <button onClick={() => navigate('/')} className="font-mono text-xs font-semibold tracking-[0.12em] text-muted-foreground/60 uppercase hover:text-foreground/80 transition-colors">
+        <button
+          onClick={() => navigate('/')}
+          className="text-[11px] font-semibold tracking-[0.18em] text-white/70 hover:text-white uppercase transition-colors"
+          style={{ fontFamily: JAKARTA }}
+        >
           TRAC
         </button>
         {phase === 'steps' && (
-          <div className="font-mono text-xs text-muted-foreground/50">
-            <span className="text-foreground/70 font-medium">{currentStep + 1}</span> / {totalSteps}
+          <div
+            className="text-[11px] tracking-[0.14em] text-white/45"
+            style={{ fontFamily: JAKARTA }}
+          >
+            <span className="text-white/85 font-semibold">{currentStep + 1}</span>
+            <span className="mx-1">/</span>
+            {totalSteps}
           </div>
         )}
       </div>
@@ -179,13 +191,22 @@ const MorningSurvey = () => {
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
               className="flex-1 flex flex-col items-center justify-center px-6 pt-20 pb-28"
             >
-              <div className="font-mono text-[10px] font-medium tracking-[0.18em] text-muted-foreground/50 uppercase mb-4">
+              <div
+                className="text-[10px] font-semibold tracking-[0.22em] text-white/55 uppercase mb-4"
+                style={{ fontFamily: JAKARTA }}
+              >
                 {step.category}
               </div>
-              <h2 className="text-2xl sm:text-3xl font-semibold text-center text-foreground/90 mb-2 tracking-tight">
+              <h2
+                className="text-[28px] sm:text-[34px] text-center text-white mb-2"
+                style={{ fontFamily: OUTFIT, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.1 }}
+              >
                 {step.question}
               </h2>
-              <p className="text-sm text-muted-foreground text-center mb-8 max-w-sm leading-relaxed">
+              <p
+                className="text-[13px] text-white/55 text-center mb-8 max-w-sm leading-relaxed"
+                style={{ fontFamily: JAKARTA }}
+              >
                 {step.hint}
               </p>
               {renderStep()}
@@ -207,23 +228,72 @@ const MorningSurvey = () => {
 
         {/* Bottom nav */}
         {phase === 'steps' && (
-          <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-4 bg-[#050505]/90 backdrop-blur-xl border-t border-white/[0.06] z-40">
+          <div
+            className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-4 z-40"
+            style={{
+              background: 'linear-gradient(to top, hsla(0,0%,0%,0.85) 40%, hsla(0,0%,0%,0.0))',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
             <div className="flex items-center gap-2 max-w-md mx-auto">
-              <Button variant="nav" size="icon" onClick={goBack} className="shrink-0 h-12 w-12">
+              <motion.button
+                type="button"
+                onClick={goBack}
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.04 }}
+                aria-label="Atrás"
+                className="shrink-0 h-12 w-12 rounded-full flex items-center justify-center text-white/80 hover:text-white"
+                style={{
+                  fontFamily: JAKARTA,
+                  background: 'linear-gradient(135deg, hsla(0,0%,100%,0.1) 0%, hsla(0,0%,100%,0.04) 100%)',
+                  backdropFilter: 'blur(20px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                  border: '1px solid hsla(0,0%,100%,0.2)',
+                  boxShadow: 'inset 0 1px 0 hsla(0,0%,100%,0.25)',
+                }}
+              >
                 <ChevronLeft className="h-5 w-5" />
-              </Button>
+              </motion.button>
               {canSkip && (
-                <Button variant="ghost" onClick={handleSkip} className="shrink-0 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground/50">
-                  <SkipForward className="h-3.5 w-3.5 mr-1" />
+                <motion.button
+                  type="button"
+                  onClick={handleSkip}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.03 }}
+                  className="shrink-0 h-12 px-4 rounded-full flex items-center gap-1.5 text-[10px] tracking-[0.14em] uppercase text-white/60 hover:text-white/90"
+                  style={{
+                    fontFamily: JAKARTA,
+                    fontWeight: 600,
+                    background: 'hsla(0,0%,100%,0.05)',
+                    border: '1px solid hsla(0,0%,100%,0.12)',
+                  }}
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
                   Skip
-                </Button>
+                </motion.button>
               )}
-              <Button variant="nav" size="full" onClick={goNext} disabled={!isStepValid()} className="flex-1">
-                <span className="font-mono text-xs tracking-[0.06em] uppercase">
-                  {currentStep === totalSteps - 1 ? 'Revisar' : 'Siguiente'}
-                </span>
+              <motion.button
+                type="button"
+                onClick={goNext}
+                disabled={!isStepValid()}
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="flex-1 h-12 rounded-full flex items-center justify-center gap-2 text-[12px] tracking-[0.14em] uppercase text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  fontFamily: JAKARTA,
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, hsla(0,0%,100%,0.16) 0%, hsla(0,0%,100%,0.06) 100%)',
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  border: '1.5px solid hsla(0,0%,100%,0.4)',
+                  boxShadow: '0 6px 18px hsla(0,0%,0%,0.3), inset 0 1px 0 hsla(0,0%,100%,0.35)',
+                }}
+              >
+                {currentStep === totalSteps - 1 ? 'Revisar' : 'Siguiente'}
                 <ChevronRight className="h-4 w-4" />
-              </Button>
+              </motion.button>
             </div>
           </div>
         )}
