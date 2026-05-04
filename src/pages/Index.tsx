@@ -31,6 +31,11 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, setUser } = useUser();
 
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
+
   const firstName = user?.name?.split(' ')[0] || user?.athleteName?.split(' ')[0];
 
   const handleLogout = () => {
