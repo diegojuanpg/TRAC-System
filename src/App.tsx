@@ -6,17 +6,24 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProvider, useUser } from "@/context/UserContext";
 import Index from "./pages/Index.tsx";
 import MorningSurvey from "./pages/MorningSurvey.tsx";
-import NutritionForm from "./pages/NutritionForm.tsx";
+import NutritionDashboard from "./pages/NutritionDashboard.tsx";
 import Login from "./pages/Login.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import MonitoringDashboard from "./pages/MonitoringDashboard.tsx";
+import AdminDashboard from "./pages/AdminDashboard.tsx";
 
 const queryClient = new QueryClient();
 
-// Redirects unauthenticated users to /login
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { user } = useUser();
   return user ? children : <Navigate to="/login" replace />;
+};
+
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const { user } = useUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.isAdmin) return <Navigate to="/" replace />;
+  return children;
 };
 
 const AppRoutes = () => (
@@ -25,8 +32,9 @@ const AppRoutes = () => (
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
       <Route path="/morning" element={<PrivateRoute><MorningSurvey /></PrivateRoute>} />
-      <Route path="/nutrition" element={<PrivateRoute><NutritionForm /></PrivateRoute>} />
+      <Route path="/nutrition" element={<PrivateRoute><NutritionDashboard /></PrivateRoute>} />
       <Route path="/monitoring" element={<PrivateRoute><MonitoringDashboard /></PrivateRoute>} />
+      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
       
       {/* VERBOSE CATCH-ALL FOR DEBUGGING VERCEL */}
       <Route path="*" element={

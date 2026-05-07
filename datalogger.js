@@ -1,14 +1,11 @@
 // ══════════════════════════════════════════════════════════════════════════
-// SCRIPT B — TRAC DATA LOGGER (Simplified — Per Coach)
+// SCRIPT B — TRAC DATA LOGGER (Per Coach)
 //
-// Este script SOLO lee y escribe datos. Todos los cálculos de métricas
-// (Z-scores, EWMA, composites, ANS) se hacen en el frontend.
+// Lee y escribe datos. Todos los cálculos se hacen en el frontend.
 //
 // DEPLOY:
 //   Extensions → Apps Script → Deploy → New Deployment
-//   Type: Web App
-//   Execute as: Me (la cuenta del coach)
-//   Who has access: Anyone
+//   Type: Web App  |  Execute as: Me  |  Who has access: Anyone
 //
 // REQUISITOS:
 //   1. Habilitar la API de Google Sheets (Services → Google Sheets API)
@@ -21,13 +18,46 @@ const CONFIG = {
   TRAC_DB: 'TRAC_database',
   TRAC_HEADER_ROW: 6,
   TRAC_DATA_START: 7,
-  TRAC_COL_COUNT: 60,     // A:BH
+  TRAC_COL_COUNT: 60,
 
   NUTR_DB: 'Nutrition_database',
   NUTR_HEADER_ROW: 6,
   NUTR_DATA_START: 7,
-  NUTR_COL_COUNT: 10       // A:J
+
+  // Nutrition table: A(1):J(10)
+  NUTR_COL_START:  1,
+  NUTR_COL_COUNT:  10,
+
+  // Goals table: L(12):AO(41) — single data row, overwritten on each save
+  GOALS_COL_START: 12,
+  GOALS_COL_COUNT: 30,
+
+  // Goals_History table: AQ(43):BT(72) — append-only
+  GHIST_COL_START: 43,
+  GHIST_COL_COUNT: 30,
+
+  // Refeeds table: BV(74):BW(75)
+  REFEED_COL_START: 74,
+  REFEED_COL_COUNT: 2,
 };
+
+// Goals columns (same structure for Goals table and Goals_History table)
+const GOALS_HEADERS = [
+  'mode', 'startWeight', 'startWeightMode', 'targetWeight', 'targetRatePerWeek',
+  'targetDate', 'maintenanceKcal', 'maintenanceMode', 'kcalAdjPerDay', 'balanceKcal',
+  'proteinPerKg', 'proteinPct', 'proteinTarget', 'proteinUnit',
+  'fatPerKg', 'fatPct', 'fatTarget', 'fatUnit',
+  'carbsPerKg', 'carbsPct', 'carbsTarget', 'carbsUnit',
+  'kcalTarget', 'fiberTarget', 'cardioTarget', 'waterTarget', 'stepsTarget',
+  'updatedAt', 'prescribedBy', 'note'
+];
+
+const NUTRITION_HEADERS = [
+  'Date', 'Bodyweight', 'Calories (kcals)', 'Protein (gr)', 'Carbs (gr)',
+  'Fat (gr)', 'Fiber (gr)', 'Water (lt)', 'Steps', 'Cardio'
+];
+
+const REFEED_HEADERS = ['date', 'note'];
 
 
 // ══════════════════════════════════════════
@@ -42,47 +72,40 @@ function doPost(e) {
       return jsonResponse({ success: false, error: 'Token inválido.' });
     }
 
-    const action = String(body.action || '').trim();
+    const action  = String(body.action  || '').trim();
     const sheetId = String(body.sheetId || '').trim();
 
-    if (!sheetId) {
-      return jsonResponse({ success: false, error: 'sheetId no proporcionado.' });
-    }
+    if (!sheetId) return jsonResponse({ success: false, error: 'sheetId no proporcionado.' });
 
-    // ── CHECK: ¿Ya se completó el Morning Survey hoy? ──
     if (action === 'check') {
-      const alreadySubmitted = checkAlreadySubmitted(sheetId);
-      return jsonResponse({ success: true, alreadySubmitted });
+      return jsonResponse({ success: true, alreadySubmitted: checkAlreadySubmitted(sheetId) });
     }
 
-    // ── APPEND TRAC: Escribir fila pre-calculada ──
     if (action === 'appendTRAC') {
-      const row = body.row;
-      if (!row || !Array.isArray(row)) {
+      if (!body.row || !Array.isArray(body.row))
         return jsonResponse({ success: false, error: 'row[] no proporcionado.' });
-      }
-      const result = appendTRACRow(sheetId, row);
-      return jsonResponse({ success: true, result });
+      return jsonResponse({ success: true, result: appendTRACRow(sheetId, body.row) });
     }
 
-    // ── WRITE TRAC: Escribir TODAS las filas (recalculadas) ──
     if (action === 'writeTRAC') {
-      const rows = body.rows;
-      if (!rows || !Array.isArray(rows)) {
+      if (!body.rows || !Array.isArray(body.rows))
         return jsonResponse({ success: false, error: 'rows[][] no proporcionado.' });
-      }
-      const result = writeTRACData(sheetId, rows);
-      return jsonResponse({ success: true, result });
+      return jsonResponse({ success: true, result: writeTRACData(sheetId, body.rows) });
     }
 
-    // ── SAVE NUTRITION: Upsert en Nutrition_database ──
     if (action === 'saveNutrition') {
-      const data = body.data;
-      if (!data) {
-        return jsonResponse({ success: false, error: 'data no proporcionado.' });
-      }
-      const result = saveNutritionData(sheetId, data);
-      return jsonResponse({ success: true, result });
+      if (!body.data) return jsonResponse({ success: false, error: 'data no proporcionado.' });
+      return jsonResponse({ success: true, result: saveNutritionData(sheetId, body.data, body.date || null) });
+    }
+
+    if (action === 'saveNutritionGoals') {
+      if (!body.goals) return jsonResponse({ success: false, error: 'goals no proporcionado.' });
+      return jsonResponse({ success: true, result: saveNutritionGoals(sheetId, body.goals, body.userEmail || '', body.note || '') });
+    }
+
+    if (action === 'toggleRefeed') {
+      if (!body.date) return jsonResponse({ success: false, error: 'date no proporcionado.' });
+      return jsonResponse({ success: true, result: toggleRefeed(sheetId, body.date, !!body.refeed) });
     }
 
     return jsonResponse({ success: false, error: 'Acción desconocida: ' + action });
@@ -95,38 +118,41 @@ function doPost(e) {
 
 function doGet(e) {
   try {
-    const token = e.parameter.token;
-    const action = String(e.parameter.action || '').trim();
+    const token   = e.parameter.token;
+    const action  = String(e.parameter.action  || '').trim();
     const sheetId = String(e.parameter.sheetId || '').trim();
 
-    if (!token || token !== SHARED_TOKEN) {
+    if (!token || token !== SHARED_TOKEN)
       return jsonResponse({ success: false, error: 'Token inválido.' });
-    }
-
-    if (!sheetId) {
+    if (!sheetId)
       return jsonResponse({ success: false, error: 'sheetId no proporcionado.' });
-    }
 
-    // ── FETCH HISTORY: Devolver headers + últimas N filas de TRAC_database ──
     if (action === 'fetchHistory') {
       enforceHeaders(sheetId);
       const maxRows = parseInt(e.parameter.rows || '50');
-      const result = fetchHistory(sheetId, maxRows);
-      return jsonResponse({ success: true, data: result });
+      return jsonResponse({ success: true, data: fetchHistory(sheetId, maxRows) });
     }
 
-    // ── FETCH DASHBOARD: Devolver datos para el dashboard ──
     if (action === 'fetchDashboard') {
       enforceHeaders(sheetId);
-      const result = fetchDashboardData(sheetId);
-      return jsonResponse({ success: true, data: result });
+      return jsonResponse({ success: true, data: fetchDashboardData(sheetId) });
     }
 
-    // ── FETCH NUTRITION HISTORY ──
     if (action === 'fetchNutrition') {
-      const maxRows = parseInt(e.parameter.rows || '50');
-      const result = fetchNutritionHistory(sheetId, maxRows);
-      return jsonResponse({ success: true, data: result });
+      const maxRows = parseInt(e.parameter.rows || '500');
+      return jsonResponse({ success: true, data: fetchNutritionHistory(sheetId, maxRows) });
+    }
+
+    if (action === 'fetchNutritionGoals') {
+      return jsonResponse({ success: true, data: fetchNutritionGoals(sheetId) });
+    }
+
+    if (action === 'fetchNutritionGoalsHistory') {
+      return jsonResponse({ success: true, data: fetchNutritionGoalsHistory(sheetId) });
+    }
+
+    if (action === 'fetchRefeeds') {
+      return jsonResponse({ success: true, data: fetchRefeeds(sheetId) });
     }
 
     return ContentService.createTextOutput('TRAC DataLogger — OK').setMimeType(ContentService.MimeType.TEXT);
@@ -139,118 +165,119 @@ function doGet(e) {
 
 
 // ══════════════════════════════════════════
-// TRAC_database: READ
+// INIT: auto-create missing Nutrition tables
 // ══════════════════════════════════════════
 
-function fetchHistory(ssId, maxRows) {
-  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-  const hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":" + endCol + CONFIG.TRAC_HEADER_ROW;
-  const dataRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START + ":" + endCol + "5000";
+function initNutritionTables(ssId) {
+  var hRow = CONFIG.NUTR_HEADER_ROW;
+  var db   = CONFIG.NUTR_DB;
 
-  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
-  const headers = hdrResp.values ? hdrResp.values[0] : [];
+  function colRange(start, count) {
+    return "'" + db + "'!" + columnToLetter(start) + hRow + ':' + columnToLetter(start + count - 1) + hRow;
+  }
 
-  const allDataResp = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-  const allData = (allDataResp.values || []).filter(row => row[0] !== undefined && row[0] !== '');
+  function needsInit(start, count, expectedHeaders) {
+    try {
+      var resp = Sheets.Spreadsheets.Values.get(ssId, colRange(start, count));
+      var existing = (resp.values && resp.values[0]) ? resp.values[0] : [];
+      return existing[0] !== expectedHeaders[0];
+    } catch(e) {
+      return true;
+    }
+  }
 
-  // Devolver solo las últimas maxRows filas
-  const startIdx = Math.max(0, allData.length - maxRows);
-  const rows = allData.slice(startIdx);
+  // Goals table (L:AO)
+  if (needsInit(CONFIG.GOALS_COL_START, CONFIG.GOALS_COL_COUNT, GOALS_HEADERS)) {
+    Sheets.Spreadsheets.Values.update(
+      { values: [GOALS_HEADERS] },
+      ssId,
+      "'" + db + "'!" + columnToLetter(CONFIG.GOALS_COL_START) + hRow,
+      { valueInputOption: 'RAW' }
+    );
+    console.log('[DataLogger] initNutritionTables: Goals headers written.');
+  }
 
-  return { headers, rows, totalRows: allData.length };
+  // Goals_History table (AQ:BT)
+  if (needsInit(CONFIG.GHIST_COL_START, CONFIG.GHIST_COL_COUNT, GOALS_HEADERS)) {
+    Sheets.Spreadsheets.Values.update(
+      { values: [GOALS_HEADERS] },
+      ssId,
+      "'" + db + "'!" + columnToLetter(CONFIG.GHIST_COL_START) + hRow,
+      { valueInputOption: 'RAW' }
+    );
+    console.log('[DataLogger] initNutritionTables: Goals_History headers written.');
+  }
+
+  // Refeeds table (BV:BW)
+  if (needsInit(CONFIG.REFEED_COL_START, CONFIG.REFEED_COL_COUNT, REFEED_HEADERS)) {
+    Sheets.Spreadsheets.Values.update(
+      { values: [REFEED_HEADERS] },
+      ssId,
+      "'" + db + "'!" + columnToLetter(CONFIG.REFEED_COL_START) + hRow,
+      { valueInputOption: 'RAW' }
+    );
+    console.log('[DataLogger] initNutritionTables: Refeeds headers written.');
+  }
 }
 
 
 // ══════════════════════════════════════════
-// TRAC_database: WRITE
+// TRAC_database: READ / WRITE
 // ══════════════════════════════════════════
 
+function fetchHistory(ssId, maxRows) {
+  var endCol   = columnToLetter(CONFIG.TRAC_COL_COUNT);
+  var hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ':' + endCol + CONFIG.TRAC_HEADER_ROW;
+  var datRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START  + ':' + endCol + '5000';
+
+  var headers = safeGet(ssId, hdrRange, true);
+  var allData = safeGet(ssId, datRange, false).filter(r => r[0] !== undefined && r[0] !== '');
+  var startIdx = Math.max(0, allData.length - maxRows);
+  return { headers, rows: allData.slice(startIdx), totalRows: allData.length };
+}
+
 function enforceHeaders(ssId) {
-  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-  const hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":" + endCol + CONFIG.TRAC_HEADER_ROW;
-  
-  const REQUIRED_HEADERS = "Date,Measurement_Time,Protocol_Confirmed,Context_Flag,Bodyweight,Tap Speed Test,Tap_Variance,Tap_Pauses,HR1,HR2,HR3,HR4,OrthoResponse,VagalRecovery,PosturalCost,POTS_Flag,Push Soreness,Pull Soreness,Legs Soreness,Lesión/Molestia,Cansancio,Carga de Trabajo Percibida,Recuperación Percibida,Horas de Sueño,Calidad de Sueño,Alimentacion,Motivación,Z-Tap Speed Test,Z-Tap Variance,Z-HR1,Z-HR2,Z-HR3,Z-HR4,Z-OrthoResponse,Z-VagalRecovery,Z-PosturalCost,Z-Push Soreness,Z-Pull Soreness,Z-Legs Soreness,Z-Lesión/Molestia,Z-Cansancio,Z-Carga de Trabajo Percibida,Z-Recuperación Percibida,Z-Horas de Sueño,Z-Calidad de Sueño,Z-Alimentacion,Z-Motivacion,Fatigue,Fitness,Readiness,Z-Readiness,Peripheral_Stress,Central_Stress,STF,LTF,STF_LTF_Ratio,ANS_Profile,Trend_7d,Alert_Level,TRAC_Action".split(",");
-  
-  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
-  const currentHeaders = hdrResp.values ? hdrResp.values[0] : [];
-  
-  let match = true;
-  if (currentHeaders.length !== REQUIRED_HEADERS.length) {
-    match = false;
-  } else {
-    for (let i = 0; i < REQUIRED_HEADERS.length; i++) {
-      if (String(currentHeaders[i] || '').trim() !== REQUIRED_HEADERS[i]) {
-        match = false;
-        break;
-      }
-    }
-  }
-  
+  var endCol   = columnToLetter(CONFIG.TRAC_COL_COUNT);
+  var hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ':' + endCol + CONFIG.TRAC_HEADER_ROW;
+
+  var REQUIRED = "Date,Measurement_Time,Protocol_Confirmed,Context_Flag,Bodyweight,Tap Speed Test,Tap_Variance,Tap_Pauses,HR1,HR2,HR3,HR4,OrthoResponse,VagalRecovery,PosturalCost,POTS_Flag,Push Soreness,Pull Soreness,Legs Soreness,Lesión/Molestia,Cansancio,Carga de Trabajo Percibida,Recuperación Percibida,Horas de Sueño,Calidad de Sueño,Alimentacion,Motivación,Z-Tap Speed Test,Z-Tap Variance,Z-HR1,Z-HR2,Z-HR3,Z-HR4,Z-OrthoResponse,Z-VagalRecovery,Z-PosturalCost,Z-Push Soreness,Z-Pull Soreness,Z-Legs Soreness,Z-Lesión/Molestia,Z-Cansancio,Z-Carga de Trabajo Percibida,Z-Recuperación Percibida,Z-Horas de Sueño,Z-Calidad de Sueño,Z-Alimentacion,Z-Motivacion,Fatigue,Fitness,Readiness,Z-Readiness,Peripheral_Stress,Central_Stress,STF,LTF,STF_LTF_Ratio,ANS_Profile,Trend_7d,Alert_Level,TRAC_Action".split(',');
+
+  var current = safeGet(ssId, hdrRange, true);
+  var match = current.length === REQUIRED.length && REQUIRED.every((h, i) => String(current[i] || '').trim() === h);
+
   if (!match) {
-    try {
-      // Intentar limpiar toda la fila 6 para borrar las columnas legacy
-      Sheets.Spreadsheets.Values.clear({}, ssId, "'" + CONFIG.TRAC_DB + "'!6:6");
-    } catch(e) {
-      console.warn('[DataLogger] Error limpiando headers antiguos: ' + e.message);
-    }
-    
-    // Escribir solo las 60 columnas necesarias empezando en A6
-    const writeRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW;
+    try { Sheets.Spreadsheets.Values.clear({}, ssId, "'" + CONFIG.TRAC_DB + "'!6:6"); } catch(e) {}
     Sheets.Spreadsheets.Values.update(
-      { values: [REQUIRED_HEADERS] },
-      ssId,
-      writeRange,
+      { values: [REQUIRED] }, ssId,
+      "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW,
       { valueInputOption: 'RAW' }
     );
-    console.log('[DataLogger] Headers did not match required format. Overwritten.');
   }
 }
 
 function appendTRACRow(ssId, row) {
   enforceHeaders(ssId);
-
-  // Pad row to full column count
+  var endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
   while (row.length < CONFIG.TRAC_COL_COUNT) row.push('');
-
-  // Read existing data to find next empty row
-  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-  const dataRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START + ":" + endCol + "5007";
-  const existing = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-  const existingRows = (existing.values || []).filter(r => r[0] !== undefined && r[0] !== '');
-  const insertRow = CONFIG.TRAC_DATA_START + existingRows.length;
-
-  // Write the single row
-  const writeRange = "'" + CONFIG.TRAC_DB + "'!A" + insertRow + ":" + endCol + insertRow;
+  var existing = safeGet(ssId, "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START + ':' + endCol + '5007', false)
+    .filter(r => r[0] !== undefined && r[0] !== '');
+  var insertRow = CONFIG.TRAC_DATA_START + existing.length;
   Sheets.Spreadsheets.Values.update(
-    { values: [row] },
-    ssId,
-    writeRange,
+    { values: [row] }, ssId,
+    "'" + CONFIG.TRAC_DB + "'!A" + insertRow + ':' + endCol + insertRow,
     { valueInputOption: 'RAW' }
   );
-
-  console.log('[DataLogger] appendTRACRow: fila %d escrita.', insertRow);
   return { row: insertRow };
 }
 
 function writeTRACData(ssId, rows) {
   enforceHeaders(ssId);
-
-  // Write ALL data rows (used when frontend recalculates everything)
-  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-
-  // Pad each row
-  rows.forEach(row => {
-    while (row.length < CONFIG.TRAC_COL_COUNT) row.push('');
-  });
-
+  rows.forEach(r => { while (r.length < CONFIG.TRAC_COL_COUNT) r.push(''); });
   Sheets.Spreadsheets.Values.update(
-    { values: rows },
-    ssId,
+    { values: rows }, ssId,
     "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START,
     { valueInputOption: 'RAW' }
   );
-
-  console.log('[DataLogger] writeTRACData: %d filas escritas.', rows.length);
   return { rowsWritten: rows.length };
 }
 
@@ -261,121 +288,72 @@ function writeTRACData(ssId, rows) {
 
 function checkAlreadySubmitted(ssId) {
   try {
-    const hdrRow = CONFIG.TRAC_HEADER_ROW;
-    const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-
-    const hdrResp = Sheets.Spreadsheets.Values.get(
-      ssId,
-      "'" + CONFIG.TRAC_DB + "'!A" + hdrRow + ":" + endCol + hdrRow
-    );
-    const headers = hdrResp.values ? hdrResp.values[0] : [];
-    let dateColIdx = -1;
-    headers.forEach((h, i) => { if (String(h).trim() === 'Date') dateColIdx = i; });
+    var hdrRow = CONFIG.TRAC_HEADER_ROW;
+    var endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
+    var headers = safeGet(ssId, "'" + CONFIG.TRAC_DB + "'!A" + hdrRow + ':' + endCol + hdrRow, true);
+    var dateColIdx = headers.findIndex(h => String(h).trim() === 'Date');
     if (dateColIdx === -1) return false;
-
-    const dateColLetter = columnToLetter(dateColIdx + 1);
-    const dateRange = "'" + CONFIG.TRAC_DB + "'!" + dateColLetter + (hdrRow + 1) + ":" + dateColLetter + "5000";
-    const dateResp = Sheets.Spreadsheets.Values.get(ssId, dateRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-    const dates = dateResp.values || [];
-
-    const todaySerial = getTodaySerial();
-    const todayStr = getTodayString();
-
-    return dates.some(row => {
-      const val = row[0];
-      if (!val) return false;
-      const strVal = String(val);
-      if (strVal.includes('-') && strVal === todayStr) return true;
-      const numVal = Number(val);
-      if (!isNaN(numVal)) return Math.abs(numVal - todaySerial) < 1;
-      return false;
+    var dateLetter = columnToLetter(dateColIdx + 1);
+    var dates = safeGet(ssId, "'" + CONFIG.TRAC_DB + "'!" + dateLetter + (hdrRow + 1) + ':' + dateLetter + '5000', false);
+    var todaySerial = getTodaySerial();
+    var todayStr = getTodayString();
+    return dates.some(r => {
+      var val = r[0]; if (!val) return false;
+      var s = String(val);
+      if (s.includes('-') && s === todayStr) return true;
+      var n = Number(val);
+      return !isNaN(n) && Math.abs(n - todaySerial) < 1;
     });
-
-  } catch (e) {
-    console.error('[DataLogger] checkAlreadySubmitted error: %s', e.message);
+  } catch(e) {
     return false;
   }
 }
 
 
 // ══════════════════════════════════════════
-// DASHBOARD DATA (GET)
+// DASHBOARD DATA
 // ══════════════════════════════════════════
 
 function fetchDashboardData(ssId) {
-  const endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
-  const hdrRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ":" + endCol + CONFIG.TRAC_HEADER_ROW;
-  const dataRange = "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START + ":" + endCol + "5000";
-
-  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
-  const rawHeaders = hdrResp.values ? hdrResp.values[0] : [];
-  const hMap = {};
-  rawHeaders.forEach((h, i) => { if (h) hMap[String(h).trim()] = i; });
-
-  const allDataResp = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-  const allData = (allDataResp.values || []).filter(row => row[0] !== undefined && row[0] !== '');
+  var endCol = columnToLetter(CONFIG.TRAC_COL_COUNT);
+  var headers = safeGet(ssId, "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_HEADER_ROW + ':' + endCol + CONFIG.TRAC_HEADER_ROW, true);
+  var hMap = {};
+  headers.forEach((h, i) => { if (h) hMap[String(h).trim()] = i; });
+  var allData = safeGet(ssId, "'" + CONFIG.TRAC_DB + "'!A" + CONFIG.TRAC_DATA_START + ':' + endCol + '5000', false)
+    .filter(r => r[0] !== undefined && r[0] !== '');
 
   if (allData.length === 0) return { error: 'No hay datos' };
 
-  const lastRow = allData[allData.length - 1];
-  const prevRow = allData.length > 1 ? allData[allData.length - 2] : null;
-
-  const getVal = (row, colName, fallback) => {
-    fallback = fallback !== undefined ? fallback : null;
-    const idx = hMap[colName];
-    if (idx === undefined || !row) return fallback;
-    const v = row[idx];
-    return (v === undefined || v === '') ? fallback : v;
+  var lastRow = allData[allData.length - 1];
+  var getVal = (row, col, fb) => {
+    fb = fb !== undefined ? fb : null;
+    var idx = hMap[col]; if (idx === undefined || !row) return fb;
+    var v = row[idx]; return (v === undefined || v === '') ? fb : v;
   };
 
-  // Últimos 14 días para trend, 7 para barra
-  const last7Days = [];
-  const readinessTrend = [];
-  const startIdx = Math.max(0, allData.length - 14);
-  for (let i = startIdx; i < allData.length; i++) {
-    const dateRaw = getVal(allData[i], 'Date');
-    let dateStr = String(dateRaw);
+  var readinessTrend = [], last7Days = [];
+  var startIdx = Math.max(0, allData.length - 14);
+  for (var i = startIdx; i < allData.length; i++) {
+    var dateRaw = getVal(allData[i], 'Date');
+    var dateStr = String(dateRaw);
     if (typeof dateRaw === 'number') {
-      const dateObj = new Date((dateRaw - 25569) * 86400 * 1000);
+      var dateObj = new Date((dateRaw - 25569) * 86400 * 1000);
       dateStr = dateObj.toISOString().split('T')[0];
     }
-
-    readinessTrend.push({
-      date: dateStr,
-      readiness: getVal(allData[i], 'Z-Readiness', 0)
-    });
-
-    if (i >= allData.length - 7) {
-      last7Days.push({
-        date: dateStr,
-        alertLevel: getVal(allData[i], 'Alert_Level', 0),
-        ansProfile: getVal(allData[i], 'ANS_Profile', 'INSUFFICIENT_DATA')
-      });
-    }
+    readinessTrend.push({ date: dateStr, readiness: getVal(allData[i], 'Z-Readiness', 0) });
+    if (i >= allData.length - 7)
+      last7Days.push({ date: dateStr, alertLevel: getVal(allData[i], 'Alert_Level', 0), ansProfile: getVal(allData[i], 'ANS_Profile', 'INSUFFICIENT_DATA') });
   }
 
   return {
-    date: getVal(lastRow, 'Date'),
-    measurementTime: getVal(lastRow, 'Measurement_Time', ''),
-    alertLevel: getVal(lastRow, 'Alert_Level', 0),
-    ansProfile: getVal(lastRow, 'ANS_Profile', 'INSUFFICIENT_DATA'),
-    action: getVal(lastRow, 'TRAC_Action', ''),
-    readinessZ: getVal(lastRow, 'Z-Readiness', 0),
-    fatigueZ: getVal(lastRow, 'Fatigue', 0),
-    fitnessZ: getVal(lastRow, 'Fitness', 0),
-    stfLtfRatio: getVal(lastRow, 'STF_LTF_Ratio', 0),
-    stf: getVal(lastRow, 'STF', 0),
-    ltf: getVal(lastRow, 'LTF', 0),
-    soreness: {
-      push: getVal(lastRow, 'Push Soreness', 0),
-      pull: getVal(lastRow, 'Pull Soreness', 0),
-      legs: getVal(lastRow, 'Legs Soreness', 0),
-      injury: getVal(lastRow, 'Lesión/Molestia', 0)
-    },
-    peripheralStress: getVal(lastRow, 'Peripheral_Stress', 0),
-    centralStress: getVal(lastRow, 'Central_Stress', 0),
-    readinessTrend,
-    last7Days
+    date: getVal(lastRow, 'Date'), measurementTime: getVal(lastRow, 'Measurement_Time', ''),
+    alertLevel: getVal(lastRow, 'Alert_Level', 0), ansProfile: getVal(lastRow, 'ANS_Profile', 'INSUFFICIENT_DATA'),
+    action: getVal(lastRow, 'TRAC_Action', ''), readinessZ: getVal(lastRow, 'Z-Readiness', 0),
+    fatigueZ: getVal(lastRow, 'Fatigue', 0), fitnessZ: getVal(lastRow, 'Fitness', 0),
+    stfLtfRatio: getVal(lastRow, 'STF_LTF_Ratio', 0), stf: getVal(lastRow, 'STF', 0), ltf: getVal(lastRow, 'LTF', 0),
+    soreness: { push: getVal(lastRow, 'Push Soreness', 0), pull: getVal(lastRow, 'Pull Soreness', 0), legs: getVal(lastRow, 'Legs Soreness', 0), injury: getVal(lastRow, 'Lesión/Molestia', 0) },
+    peripheralStress: getVal(lastRow, 'Peripheral_Stress', 0), centralStress: getVal(lastRow, 'Central_Stress', 0),
+    readinessTrend, last7Days
   };
 }
 
@@ -385,94 +363,213 @@ function fetchDashboardData(ssId) {
 // ══════════════════════════════════════════
 
 function fetchNutritionHistory(ssId, maxRows) {
-  const endCol = columnToLetter(CONFIG.NUTR_COL_COUNT);
-  const hdrRange = "'" + CONFIG.NUTR_DB + "'!A" + CONFIG.NUTR_HEADER_ROW + ":" + endCol + CONFIG.NUTR_HEADER_ROW;
-  const dataRange = "'" + CONFIG.NUTR_DB + "'!A" + CONFIG.NUTR_DATA_START + ":" + endCol + "5000";
+  var startCol = columnToLetter(CONFIG.NUTR_COL_START);
+  var endCol   = columnToLetter(CONFIG.NUTR_COL_START + CONFIG.NUTR_COL_COUNT - 1);
+  var hdrRange = "'" + CONFIG.NUTR_DB + "'!" + startCol + CONFIG.NUTR_HEADER_ROW + ':' + endCol + CONFIG.NUTR_HEADER_ROW;
+  var datRange = "'" + CONFIG.NUTR_DB + "'!" + startCol + CONFIG.NUTR_DATA_START  + ':' + endCol + '5000';
 
-  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
-  const headers = hdrResp.values ? hdrResp.values[0] : [];
-
-  const allDataResp = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-  const allData = (allDataResp.values || []).filter(row => row[0] !== undefined && row[0] !== '');
-
-  const startIdx = Math.max(0, allData.length - maxRows);
+  var headers = safeGet(ssId, hdrRange, true);
+  var allData = safeGet(ssId, datRange, false).filter(r => r[0] !== undefined && r[0] !== '');
+  var startIdx = Math.max(0, allData.length - maxRows);
   return { headers, rows: allData.slice(startIdx), totalRows: allData.length };
 }
 
-function saveNutritionData(ssId, data) {
-  const endCol = columnToLetter(CONFIG.NUTR_COL_COUNT);
-  const hdrRange = "'" + CONFIG.NUTR_DB + "'!A" + CONFIG.NUTR_HEADER_ROW + ":" + endCol + CONFIG.NUTR_HEADER_ROW;
-  const dataRange = "'" + CONFIG.NUTR_DB + "'!A" + CONFIG.NUTR_DATA_START + ":" + endCol + "5000";
+function saveNutritionData(ssId, data, isoDate) {
+  var startCol = columnToLetter(CONFIG.NUTR_COL_START);
+  var endCol   = columnToLetter(CONFIG.NUTR_COL_START + CONFIG.NUTR_COL_COUNT - 1);
+  var hdrRange = "'" + CONFIG.NUTR_DB + "'!" + startCol + CONFIG.NUTR_HEADER_ROW + ':' + endCol + CONFIG.NUTR_HEADER_ROW;
+  var datRange = "'" + CONFIG.NUTR_DB + "'!" + startCol + CONFIG.NUTR_DATA_START  + ':' + endCol + '5000';
 
-  // Read headers
-  const hdrResp = Sheets.Spreadsheets.Values.get(ssId, hdrRange);
-  const headers = hdrResp.values ? hdrResp.values[0] : [];
-  const hMap = {};
+  var headers = safeGet(ssId, hdrRange, true);
+  var hMap = {};
   headers.forEach((h, i) => { if (h) hMap[String(h).trim()] = i; });
 
-  // Read existing data
-  const dataResp = Sheets.Spreadsheets.Values.get(ssId, dataRange, { valueRenderOption: 'UNFORMATTED_VALUE' });
-  var allData = (dataResp.values || []).map(row => {
-    var padded = row.slice();
-    while (padded.length < CONFIG.NUTR_COL_COUNT) padded.push('');
-    return padded;
+  var allData = safeGet(ssId, datRange, false).map(r => {
+    var p = r.slice();
+    while (p.length < CONFIG.NUTR_COL_COUNT) p.push('');
+    return p;
   });
 
-  var todaySerial = getTodaySerial();
-  var dateIdx = hMap['Date'];
+  // Determine target date serial
+  var targetSerial;
+  if (isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    var parts = isoDate.split('-');
+    var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+    var epoch = new Date(Date.UTC(1899, 11, 30));
+    targetSerial = Math.floor((d - epoch) / 86400000);
+  } else {
+    targetSerial = getTodaySerial();
+  }
 
-  // Find today's row
+  var dateIdx = hMap['Date'];
   var targetIdx = -1;
   if (dateIdx !== undefined) {
-    targetIdx = allData.findIndex(row => {
-      var val = row[dateIdx];
+    targetIdx = allData.findIndex(r => {
+      var val = r[dateIdx];
       if (!val && val !== 0) return false;
-      var numVal = Number(val);
-      return !isNaN(numVal) && Math.abs(numVal - todaySerial) < 1;
+      return !isNaN(Number(val)) && Math.abs(Number(val) - targetSerial) < 1;
     });
   }
 
   if (targetIdx === -1) {
     var newRow = new Array(CONFIG.NUTR_COL_COUNT).fill('');
-    if (dateIdx !== undefined) newRow[dateIdx] = todaySerial;
+    if (dateIdx !== undefined) newRow[dateIdx] = targetSerial;
     allData.push(newRow);
     targetIdx = allData.length - 1;
   }
 
-  // Map fields to headers
-  var FIELD_TO_HEADER = {
+  var FIELD_MAP = {
     bodyweight: 'Bodyweight',
-    calories: 'Calories (kcals)',
-    protein: 'Protein (gr)',
-    carbs: 'Carbs (gr)',
-    fat: 'Fat (gr)',
-    fiber: 'Fiber (gr)',
-    water: 'Water (lt)',
-    steps: 'Steps',
-    cardio: 'Cardio'
+    calories:   'Calories (kcals)',
+    protein:    'Protein (gr)',
+    carbs:      'Carbs (gr)',
+    fat:        'Fat (gr)',
+    fiber:      'Fiber (gr)',
+    water:      'Water (lt)',
+    steps:      'Steps',
+    cardio:     'Cardio'
   };
 
-  for (var key in FIELD_TO_HEADER) {
-    var header = FIELD_TO_HEADER[key];
-    var value = data[key];
-    if (value === null || value === undefined || value === '') continue;
-    var colIdx = hMap[header];
-    if (colIdx === undefined) {
-      console.warn('[DataLogger] saveNutrition: header not found → "%s"', header);
-      continue;
-    }
-    allData[targetIdx][colIdx] = isNaN(Number(value)) ? value : Number(value);
+  for (var key in FIELD_MAP) {
+    var val = data[key];
+    if (val === null || val === undefined || val === '') continue;
+    var colIdx = hMap[FIELD_MAP[key]];
+    if (colIdx === undefined) { console.warn('[DataLogger] header not found: ' + FIELD_MAP[key]); continue; }
+    allData[targetIdx][colIdx] = isNaN(Number(val)) ? val : Number(val);
   }
 
-  // Write back
   Sheets.Spreadsheets.Values.update(
-    { values: allData },
-    ssId,
-    "'" + CONFIG.NUTR_DB + "'!A" + CONFIG.NUTR_DATA_START,
+    { values: allData }, ssId,
+    "'" + CONFIG.NUTR_DB + "'!" + startCol + CONFIG.NUTR_DATA_START,
+    { valueInputOption: 'RAW' }
+  );
+  return { success: true };
+}
+
+
+// ══════════════════════════════════════════
+// GOALS: READ / WRITE
+// ══════════════════════════════════════════
+
+function fetchNutritionGoals(ssId) {
+  initNutritionTables(ssId);
+  var startLetter = columnToLetter(CONFIG.GOALS_COL_START);
+  var endLetter   = columnToLetter(CONFIG.GOALS_COL_START + CONFIG.GOALS_COL_COUNT - 1);
+  var dataRow = CONFIG.NUTR_DATA_START;
+  var range = "'" + CONFIG.NUTR_DB + "'!" + startLetter + dataRow + ':' + endLetter + dataRow;
+
+  var resp = Sheets.Spreadsheets.Values.get(ssId, range, { valueRenderOption: 'UNFORMATTED_VALUE' });
+  var row = (resp.values && resp.values[0]) ? resp.values[0] : [];
+
+  var goals = {};
+  GOALS_HEADERS.forEach((h, i) => { goals[h] = row[i] !== undefined ? row[i] : ''; });
+  return { goals };
+}
+
+function saveNutritionGoals(ssId, goalsData, userEmail, note) {
+  initNutritionTables(ssId);
+  var startLetter = columnToLetter(CONFIG.GOALS_COL_START);
+  var endLetter   = columnToLetter(CONFIG.GOALS_COL_START + CONFIG.GOALS_COL_COUNT - 1);
+  var gHistStart  = columnToLetter(CONFIG.GHIST_COL_START);
+  var gHistEnd    = columnToLetter(CONFIG.GHIST_COL_START + CONFIG.GHIST_COL_COUNT - 1);
+
+  var now = new Date().toISOString();
+
+  // Build row from GOALS_HEADERS
+  var row = GOALS_HEADERS.map(h => {
+    if (h === 'updatedAt')    return now;
+    if (h === 'prescribedBy') return userEmail || '';
+    if (h === 'note')         return note || '';
+    var val = goalsData[h];
+    return (val === null || val === undefined) ? '' : val;
+  });
+
+  // Overwrite Goals row 7
+  Sheets.Spreadsheets.Values.update(
+    { values: [row] }, ssId,
+    "'" + CONFIG.NUTR_DB + "'!" + startLetter + CONFIG.NUTR_DATA_START + ':' + endLetter + CONFIG.NUTR_DATA_START,
     { valueInputOption: 'RAW' }
   );
 
-  console.log('[DataLogger] saveNutritionData: OK.');
+  // Append to Goals_History
+  var histRange = "'" + CONFIG.NUTR_DB + "'!" + gHistStart + CONFIG.NUTR_DATA_START + ':' + gHistEnd + '5000';
+  var existing = safeGet(ssId, histRange, false).filter(r => r[0] !== undefined && r[0] !== '');
+  var insertRow = CONFIG.NUTR_DATA_START + existing.length;
+  Sheets.Spreadsheets.Values.update(
+    { values: [row] }, ssId,
+    "'" + CONFIG.NUTR_DB + "'!" + gHistStart + insertRow + ':' + gHistEnd + insertRow,
+    { valueInputOption: 'RAW' }
+  );
+
+  console.log('[DataLogger] saveNutritionGoals: OK, row ' + insertRow + ' in history.');
+  return { success: true };
+}
+
+function fetchNutritionGoalsHistory(ssId) {
+  initNutritionTables(ssId);
+  var startLetter = columnToLetter(CONFIG.GHIST_COL_START);
+  var endLetter   = columnToLetter(CONFIG.GHIST_COL_START + CONFIG.GHIST_COL_COUNT - 1);
+  var range = "'" + CONFIG.NUTR_DB + "'!" + startLetter + CONFIG.NUTR_DATA_START + ':' + endLetter + '5000';
+
+  var rows = safeGet(ssId, range, false).filter(r => r[0] !== undefined && r[0] !== '');
+
+  var history = rows.map(row => {
+    var obj = {};
+    GOALS_HEADERS.forEach((h, i) => { obj[h] = row[i] !== undefined ? row[i] : ''; });
+    var snapshot = {};
+    GOALS_HEADERS.forEach(h => { if (h !== 'updatedAt' && h !== 'prescribedBy') snapshot[h] = obj[h]; });
+    return {
+      changedAt:  obj['updatedAt']    || '',
+      changedBy:  obj['prescribedBy'] || '',
+      snapshot
+    };
+  });
+
+  return { history };
+}
+
+
+// ══════════════════════════════════════════
+// REFEEDS: READ / WRITE
+// ══════════════════════════════════════════
+
+function fetchRefeeds(ssId) {
+  initNutritionTables(ssId);
+  var startLetter = columnToLetter(CONFIG.REFEED_COL_START);
+  var endLetter   = columnToLetter(CONFIG.REFEED_COL_START + CONFIG.REFEED_COL_COUNT - 1);
+  var range = "'" + CONFIG.NUTR_DB + "'!" + startLetter + CONFIG.NUTR_DATA_START + ':' + endLetter + '5000';
+
+  var rows = safeGet(ssId, range, false).filter(r => r[0] !== undefined && r[0] !== '');
+  var refeeds = rows.map(r => String(r[0] || '')).filter(d => d !== '');
+  return { refeeds };
+}
+
+function toggleRefeed(ssId, date, add) {
+  initNutritionTables(ssId);
+  var startLetter = columnToLetter(CONFIG.REFEED_COL_START);
+  var endLetter   = columnToLetter(CONFIG.REFEED_COL_START + CONFIG.REFEED_COL_COUNT - 1);
+  var range = "'" + CONFIG.NUTR_DB + "'!" + startLetter + CONFIG.NUTR_DATA_START + ':' + endLetter + '5000';
+
+  var rows = safeGet(ssId, range, false);
+  var dates = rows.map(r => String(r[0] || '')).filter(d => d !== '');
+
+  if (add) {
+    if (!dates.includes(date)) dates.push(date);
+  } else {
+    dates = dates.filter(d => d !== date);
+  }
+
+  // Clear and rewrite
+  try { Sheets.Spreadsheets.Values.clear({}, ssId, range); } catch(e) {}
+  if (dates.length > 0) {
+    var newRows = dates.map(d => [d, '']);
+    Sheets.Spreadsheets.Values.update(
+      { values: newRows }, ssId,
+      "'" + CONFIG.NUTR_DB + "'!" + startLetter + CONFIG.NUTR_DATA_START,
+      { valueInputOption: 'RAW' }
+    );
+  }
+
   return { success: true };
 }
 
@@ -480,6 +577,17 @@ function saveNutritionData(ssId, data) {
 // ══════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════
+
+function safeGet(ssId, range, headerMode) {
+  try {
+    var resp = Sheets.Spreadsheets.Values.get(ssId, range, { valueRenderOption: 'UNFORMATTED_VALUE' });
+    if (!resp.values) return headerMode ? [] : [];
+    return headerMode ? (resp.values[0] || []) : resp.values;
+  } catch(e) {
+    console.warn('[DataLogger] safeGet failed: ' + range + ' — ' + e.message);
+    return headerMode ? [] : [];
+  }
+}
 
 function getTodaySerial() {
   var today = new Date();

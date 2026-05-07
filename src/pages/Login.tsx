@@ -74,7 +74,7 @@ const Login = () => {
               return;
             }
 
-            const { scriptUrl, sheetId, athleteName } = routerJson.data;
+            const { scriptUrl, sheetId, athleteName, isAdmin, athletes } = routerJson.data;
 
             setUser({
               email: profile.email,
@@ -83,9 +83,11 @@ const Login = () => {
               scriptUrl,
               sheetId,
               athleteName,
+              isAdmin: !!isAdmin,
+              athletes: athletes ?? [],
             });
 
-            navigate("/");
+            navigate(isAdmin ? "/admin" : "/");
           } catch (err) {
             console.error("Error during login:", err);
             setLoginError("Error de conexión. Intenta de nuevo.");

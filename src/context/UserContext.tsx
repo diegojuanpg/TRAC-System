@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
+export interface AthleteEntry {
+  email: string;
+  name: string;
+  sheetId: string;
+  scriptUrl: string;
+}
+
 export interface User {
   email: string;
   name: string;
@@ -10,6 +17,10 @@ export interface User {
   sheetId: string | null;
   /** Name of the athlete from the allowed list */
   athleteName: string | null;
+  /** True when logged in as admin/coach */
+  isAdmin?: boolean;
+  /** Full athlete list — only populated for admin */
+  athletes?: AthleteEntry[];
 }
 
 interface UserContextType {
@@ -22,18 +33,25 @@ const UserContext = createContext<UserContextType>({
   setUser: () => {},
 });
 
+const DEV_MOCK_USER: User = {
+  email: "atleta@demo.com",
+  name: "Atleta de Prueba",
+  picture: "https://ui-avatars.com/api/?name=Atleta+Prueba&background=random",
+  scriptUrl: "mock_url",
+  sheetId: "mock_sheet",
+  athleteName: "Atleta de Prueba",
+};
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  // Persist user across page reloads
   const [user, setUserState] = useState<User | null>(() => {
-    // 🔥 MODO DESARROLLO (Vibe Coding): Atleta falso para saltar el login
-    return {
-      email: "atleta@demo.com",
-      name: "Atleta de Prueba",
-      picture: "https://ui-avatars.com/api/?name=Atleta+Prueba&background=random",
-      scriptUrl: "mock_url",
-      sheetId: "mock_sheet",
-      athleteName: "Atleta de Prueba",
-    };
+    // Production: restore from localStorage
+    const saved = localStorage.getItem("trac_user");
+    if (saved) {
+      try { return JSON.parse(saved) as User; } catch { /* fall through */ }
+    }
+    // Dev only: mock user when no router URL configured
+    if (!import.meta.env.VITE_ROUTER_SCRIPT_URL) return DEV_MOCK_USER;
+    return null;
   });
 
   const setUser = (u: User | null) => {
@@ -62,21 +80,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const json = await res.json();
 
         if (json.success && json.data) {
-          const { scriptUrl, sheetId, athleteName } = json.data;
-          
-          // Only update if something changed to avoid unnecessary re-renders
+          const { scriptUrl, sheetId, athleteName, isAdmin, athletes } = json.data;
+
           if (
-            scriptUrl !== user.scriptUrl || 
-            sheetId !== user.sheetId || 
-            athleteName !== user.athleteName
+            scriptUrl !== user.scriptUrl ||
+            sheetId !== user.sheetId ||
+            athleteName !== user.athleteName ||
+            isAdmin !== user.isAdmin
           ) {
             console.log("User background refresh: Updated routing info.");
-            setUser({
-              ...user,
-              scriptUrl,
-              sheetId,
-              athleteName
-            });
+            setUser({ ...user, scriptUrl, sheetId, athleteName, isAdmin: !!isAdmin, athletes: athletes ?? user.athletes });
           }
         } else if (json.error === "Atleta no encontrado en la allowed list.") {
           // If athlete was removed from allowed list, logout automatically
