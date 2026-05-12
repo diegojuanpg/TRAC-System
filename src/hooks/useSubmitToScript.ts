@@ -26,15 +26,11 @@ export const useSubmitToScript = () => {
       throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
     }
 
-    const checkRes = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        token: SHARED_TOKEN,
-        action: "check",
-        sheetId,
-      }),
-    });
+    const checkUrl = new URL(scriptUrl);
+    checkUrl.searchParams.set("token", SHARED_TOKEN);
+    checkUrl.searchParams.set("action", "check");
+    checkUrl.searchParams.set("sheetId", sheetId);
+    const checkRes = await fetch(checkUrl.toString());
     const checkJson = await checkRes.json();
     if (checkJson.success && checkJson.alreadySubmitted) {
       throw new Error("Ya completaste el check-in de hoy.");
@@ -62,16 +58,12 @@ export const useSubmitToScript = () => {
     );
 
     // Step 4: Write ALL recalculated rows back to the sheet
-    const writeRes = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        token: SHARED_TOKEN,
-        action: "writeTRAC",
-        sheetId,
-        rows: allRows,
-      }),
-    });
+    const writeUrl = new URL(scriptUrl);
+    writeUrl.searchParams.set("token", SHARED_TOKEN);
+    writeUrl.searchParams.set("action", "writeTRAC");
+    writeUrl.searchParams.set("sheetId", sheetId);
+    writeUrl.searchParams.set("rows", JSON.stringify(allRows));
+    const writeRes = await fetch(writeUrl.toString());
     const writeJson = await writeRes.json();
 
     if (!writeJson.success) {
@@ -82,16 +74,12 @@ export const useSubmitToScript = () => {
       const bw = parseFloat(String(formData.bodyweight));
       if (isFinite(bw) && bw > 0 && bw < 500) {
         try {
-          await fetch(scriptUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify({
-              token: SHARED_TOKEN,
-              action: "saveNutrition",
-              sheetId,
-              data: { bodyweight: bw },
-            }),
-          });
+          const syncUrl = new URL(scriptUrl);
+          syncUrl.searchParams.set("token", SHARED_TOKEN);
+          syncUrl.searchParams.set("action", "saveNutrition");
+          syncUrl.searchParams.set("sheetId", sheetId);
+          syncUrl.searchParams.set("data", JSON.stringify({ bodyweight: bw }));
+          await fetch(syncUrl.toString());
         } catch {
           /* sync no crítico */
         }
@@ -110,16 +98,12 @@ export const useSubmitToScript = () => {
       throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
     }
 
-    const res = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        token: SHARED_TOKEN,
-        action: "saveNutrition",
-        sheetId,
-        data,
-      }),
-    });
+    const saveUrl = new URL(scriptUrl);
+    saveUrl.searchParams.set("token", SHARED_TOKEN);
+    saveUrl.searchParams.set("action", "saveNutrition");
+    saveUrl.searchParams.set("sheetId", sheetId);
+    saveUrl.searchParams.set("data", JSON.stringify(data));
+    const res = await fetch(saveUrl.toString());
     const json = await res.json();
 
     if (!json.success) {

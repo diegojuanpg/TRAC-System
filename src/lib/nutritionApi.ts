@@ -29,29 +29,15 @@ function requireConfig(u: UserContext) {
 
 const GENERIC_ERROR = 'No se pudo completar la operación. Intenta de nuevo.';
 
-async function postJson(scriptUrl: string, body: Record<string, unknown>) {
-  try {
-    const res = await fetch(scriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ token: SHARED_TOKEN, ...body }),
-    });
-    if (!res.ok) throw new Error(GENERIC_ERROR);
-    const json = await res.json();
-    if (!json || typeof json !== 'object') throw new Error(GENERIC_ERROR);
-    if (!json.success) throw new Error(GENERIC_ERROR);
-    return json;
-  } catch (err) {
-    if (err instanceof Error && err.message === GENERIC_ERROR) throw err;
-    throw new Error(GENERIC_ERROR);
-  }
-}
-
-async function getJson(scriptUrl: string, params: Record<string, string>) {
+// Apps Script redirects POST → loses CORS headers. All requests use GET.
+// Complex body objects encoded as JSON in 'payload' param.
+async function scriptRequest(scriptUrl: string, params: Record<string, unknown>) {
   try {
     const url = new URL(scriptUrl);
     url.searchParams.set('token', SHARED_TOKEN);
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+    }
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(GENERIC_ERROR);
     const json = await res.json();
@@ -63,6 +49,9 @@ async function getJson(scriptUrl: string, params: Record<string, string>) {
     throw new Error(GENERIC_ERROR);
   }
 }
+
+const postJson = scriptRequest;
+const getJson  = scriptRequest;
 
 /* ── Fetch nutrition rows ── */
 
