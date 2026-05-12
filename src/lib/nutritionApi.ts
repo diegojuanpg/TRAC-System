@@ -27,25 +27,29 @@ function requireConfig(u: UserContext) {
   return { scriptUrl: u.scriptUrl, sheetId: u.sheetId };
 }
 
+const GENERIC_ERROR = 'No se pudo completar la operación. Intenta de nuevo.';
+
 async function postJson(scriptUrl: string, body: Record<string, unknown>) {
-  const res = await fetch(scriptUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ token: SHARED_TOKEN, ...body }),
-  });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error || 'Error en Apps Script.');
-  return json;
+  try {
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ token: SHARED_TOKEN, ...body }),
+    });
+    if (!res.ok) throw new Error(GENERIC_ERROR);
+    const json = await res.json();
+    if (!json || typeof json !== 'object') throw new Error(GENERIC_ERROR);
+    if (!json.success) throw new Error(GENERIC_ERROR);
+    return json;
+  } catch (err) {
+    if (err instanceof Error && err.message === GENERIC_ERROR) throw err;
+    throw new Error(GENERIC_ERROR);
+  }
 }
 
+// All reads use POST with token in body (no token in URL params).
 async function getJson(scriptUrl: string, params: Record<string, string>) {
-  const url = new URL(scriptUrl);
-  url.searchParams.set('token', SHARED_TOKEN);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString());
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error || 'Error en Apps Script.');
-  return json;
+  return postJson(scriptUrl, params);
 }
 
 /* ── Fetch nutrition rows ── */
@@ -63,16 +67,40 @@ export async function fetchNutritionHistory(u: UserContext, rows = 500): Promise
 
 /* ── Save nutrition entry ── */
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const KEY_RE  = /^[a-zA-Z0-9_]{1,40}$/;
+
+function sanitizeNutritionData(
+  data: Record<string, number | string | null>
+): Record<string, number | string | null> {
+  const out: Record<string, number | string | null> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (!KEY_RE.test(k)) continue;
+    if (v === null || v === '') { out[k] = null; continue; }
+    if (typeof v === 'number') {
+      if (!isFinite(v) || v < 0 || v > 1e6) continue;
+      out[k] = v;
+    } else if (typeof v === 'string') {
+      if (v.length > 200) continue;
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export async function saveNutritionEntry(
   u: UserContext,
   data: Record<string, number | string | null>,
   date?: string
 ) {
   const { scriptUrl, sheetId } = requireConfig(u);
+  if (date && !DATE_RE.test(date)) {
+    throw new Error('Fecha inválida.');
+  }
   return postJson(scriptUrl, {
     action: 'saveNutrition',
     sheetId,
-    data,
+    data: sanitizeNutritionData(data),
     ...(date ? { date } : {}),
   });
 }
@@ -168,10 +196,11 @@ export async function fetchRefeeds(u: UserContext): Promise<Set<string>> {
 
 export async function toggleRefeed(u: UserContext, date: string, refeed: boolean) {
   const { scriptUrl, sheetId } = requireConfig(u);
+  if (!DATE_RE.test(date)) throw new Error('Fecha inválida.');
   return postJson(scriptUrl, {
     action: 'toggleRefeed',
     sheetId,
     date,
-    refeed,
+    refeed: !!refeed,
   });
 }

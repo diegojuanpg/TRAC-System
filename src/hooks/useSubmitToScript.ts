@@ -23,11 +23,9 @@ export const useSubmitToScript = () => {
     const sheetId = user?.sheetId;
 
     if (!scriptUrl || !sheetId) {
-      console.error("No scriptUrl or sheetId configured for this user.");
       throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
     }
 
-    // Step 1: Check if already submitted today
     const checkRes = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
@@ -42,18 +40,20 @@ export const useSubmitToScript = () => {
       throw new Error("Ya completaste el check-in de hoy.");
     }
 
-    // Step 2: Fetch historical data from the Data Logger
-    const historyUrl = new URL(scriptUrl);
-    historyUrl.searchParams.set("action", "fetchHistory");
-    historyUrl.searchParams.set("token", SHARED_TOKEN);
-    historyUrl.searchParams.set("sheetId", sheetId);
-    historyUrl.searchParams.set("rows", "50");
-
-    const histRes = await fetch(historyUrl.toString());
+    const histRes = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        token: SHARED_TOKEN,
+        action: "fetchHistory",
+        sheetId,
+        rows: 50,
+      }),
+    });
     const histJson = await histRes.json();
 
     if (!histJson.success || !histJson.data) {
-      throw new Error(histJson.error || "Error al obtener historial.");
+      throw new Error("No se pudo obtener historial. Intenta de nuevo.");
     }
 
     const { headers, rows: historyRows } = histJson.data;
@@ -79,24 +79,26 @@ export const useSubmitToScript = () => {
     const writeJson = await writeRes.json();
 
     if (!writeJson.success) {
-      throw new Error(writeJson.error || "Error al guardar datos.");
+      throw new Error("Error al guardar datos. Intenta de nuevo.");
     }
 
-    // Step 5: If bodyweight was included, sync to Nutrition_database
     if (formData.bodyweight !== undefined && formData.bodyweight !== '' && formData.bodyweight !== null) {
-      try {
-        await fetch(scriptUrl, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            token: SHARED_TOKEN,
-            action: "saveNutrition",
-            sheetId,
-            data: { bodyweight: parseFloat(String(formData.bodyweight)) },
-          }),
-        });
-      } catch (nutrErr) {
-        console.warn("No se pudo sincronizar bodyweight en Nutrition_database:", nutrErr);
+      const bw = parseFloat(String(formData.bodyweight));
+      if (isFinite(bw) && bw > 0 && bw < 500) {
+        try {
+          await fetch(scriptUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify({
+              token: SHARED_TOKEN,
+              action: "saveNutrition",
+              sheetId,
+              data: { bodyweight: bw },
+            }),
+          });
+        } catch {
+          /* sync no crítico */
+        }
       }
     }
   };
@@ -109,7 +111,6 @@ export const useSubmitToScript = () => {
     const sheetId = user?.sheetId;
 
     if (!scriptUrl || !sheetId) {
-      console.error("No scriptUrl or sheetId configured for this user.");
       throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
     }
 
@@ -126,7 +127,7 @@ export const useSubmitToScript = () => {
     const json = await res.json();
 
     if (!json.success) {
-      throw new Error(json.error || "Error al guardar nutrición.");
+      throw new Error("Error al guardar nutrición. Intenta de nuevo.");
     }
   };
 

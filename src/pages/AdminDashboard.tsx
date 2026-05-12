@@ -84,7 +84,7 @@ export default function AdminDashboard() {
   return (
     <DarkLayout>
       {/* Top-right: logout */}
-      <div className="fixed top-5 right-5 z-40">
+      <div className="fixed right-4 z-40" style={{ top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))' }}>
         <button
           onClick={() => setUser(null)}
           className="w-9 h-9 rounded-full flex items-center justify-center text-white/45 hover:text-white transition-colors"
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      <div className="relative z-10 px-4 py-10 pt-16 max-w-2xl mx-auto pb-20">
+      <div className="relative z-10 px-4 max-w-2xl mx-auto" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
 
         {/* Header */}
         <motion.div

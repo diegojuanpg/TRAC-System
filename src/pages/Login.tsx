@@ -58,18 +58,25 @@ const Login = () => {
             const profile = await res.json();
             const email = profile.email;
 
-            const routerUrl = new URL(ROUTER_URL);
-            routerUrl.searchParams.set("action", "lookup");
-            routerUrl.searchParams.set("token", SHARED_TOKEN);
-            routerUrl.searchParams.set("email", email);
+            if (!email || typeof email !== "string") {
+              setLoginError("No se pudo verificar tu cuenta. Intenta de nuevo.");
+              setLoading(false);
+              return;
+            }
 
-            const routerRes = await fetch(routerUrl.toString());
+            const routerRes = await fetch(ROUTER_URL, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify({
+                token: SHARED_TOKEN,
+                action: "lookup",
+                email,
+              }),
+            });
             const routerJson = await routerRes.json();
 
             if (!routerJson.success || !routerJson.data) {
-              setLoginError(
-                routerJson.error || "Tu cuenta no está autorizada. Contacta a tu coach."
-              );
+              setLoginError("Tu cuenta no está autorizada. Contacta a tu coach.");
               setLoading(false);
               return;
             }
@@ -87,9 +94,8 @@ const Login = () => {
               athletes: athletes ?? [],
             });
 
-            navigate(isAdmin ? "/admin" : "/");
-          } catch (err) {
-            console.error("Error during login:", err);
+            navigate("/");
+          } catch {
             setLoginError("Error de conexión. Intenta de nuevo.");
           } finally {
             setLoading(false);
@@ -270,7 +276,7 @@ const Login = () => {
                 aria-hidden="true"
               />
               <h1
-                className="relative text-[52px] leading-[1.0] text-white"
+                className="relative text-[38px] sm:text-[52px] leading-[1.0] text-white"
                 style={{
                   fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif",
                   fontWeight: 600,
@@ -281,7 +287,7 @@ const Login = () => {
               </h1>
             </div>
             <p
-              className="text-[13px] text-white/65 mb-6 whitespace-nowrap"
+              className="text-[13px] text-white/65 mb-6"
               style={{ fontFamily: JAKARTA }}
             >
               Bienvenido de vuelta. Por favor, inicia sesión en tu cuenta.

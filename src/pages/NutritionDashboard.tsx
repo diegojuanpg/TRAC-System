@@ -60,7 +60,7 @@ const RangeToggle = ({ value, onChange, options = RANGES }: {
       <button
         key={r.days}
         onClick={() => onChange(r.days)}
-        className="px-2 py-0.5 rounded-full text-[9px] font-semibold tracking-[0.08em] transition-all"
+        className="px-2 py-1.5 rounded-full text-[9px] font-semibold tracking-[0.08em] transition-all min-h-[32px] min-w-[28px]"
         style={{
           fontFamily: JAKARTA,
           color: value === r.days ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)",
@@ -192,7 +192,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
   return (
     <DarkLayout>
       {/* Back */}
-      <div className="fixed top-5 left-5 z-40">
+      <div className="fixed left-4 z-40" style={{ top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))' }}>
         <button
           onClick={onBack ?? (() => navigate("/"))}
           className="flex items-center justify-center w-10 h-10 rounded-full text-white/65 hover:text-white transition-colors"
@@ -203,7 +203,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
       </div>
 
       {/* Top-right */}
-      <div className="fixed top-5 right-5 z-40 flex items-center gap-2">
+      <div className="fixed right-4 z-40 flex items-center gap-2" style={{ top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))' }}>
         <button
           onClick={refetch}
           disabled={loading}
@@ -224,7 +224,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
         </motion.button>
       </div>
 
-      <div className="relative z-10 px-4 py-10 pt-20 max-w-5xl mx-auto pb-20">
+      <div className="relative z-10 px-4 py-10 pt-20 max-w-5xl mx-auto" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }} className="flex items-center gap-3 mb-8">
           <Utensils className="w-4 h-4 text-white/35" />
@@ -245,7 +245,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
         {/* ── PARTE 1 ── */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="space-y-3 mb-8">
           <SectionTitle title="Calorías, macros y actividad" sub="Prescripción del coach y tu adherencia" />
-          <PrescriptionCard goals={goals} onEditClick={() => setGoalsOpen(true)} />
+          <PrescriptionCard goals={goals} onEditClick={() => setGoalsOpen(true)} currentWeight={latestWeight} />
           <AdherenceCalendar rows={rows} refeeds={refeeds} rangeDays={90} />
         </motion.section>
 
@@ -255,36 +255,36 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="space-y-4 my-8">
           <SectionTitle title="Monitoreo general" />
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="relative rounded-2xl p-4" style={glassKpi}>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="relative rounded-2xl p-3 sm:p-4" style={glassKpi}>
               <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.4), transparent)" }} />
-              <p className="text-[9px] font-semibold tracking-[0.16em] text-white/40 uppercase mb-2" style={{ fontFamily: JAKARTA }}>Peso actual</p>
-              <p className="text-[34px] leading-none font-semibold text-white tabular-nums" style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
+              <p className="text-[8px] sm:text-[9px] font-semibold tracking-[0.12em] text-white/40 uppercase mb-1.5" style={{ fontFamily: JAKARTA }}>Peso</p>
+              <p className="text-[22px] sm:text-[30px] leading-none font-semibold text-white tabular-nums" style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
                 {latestWeight != null ? latestWeight.toFixed(1) : "—"}
               </p>
-              <p className="text-[11px] text-white/35 mt-1" style={{ fontFamily: JAKARTA }}>kg</p>
+              <p className="text-[10px] text-white/35 mt-1" style={{ fontFamily: JAKARTA }}>kg</p>
             </div>
 
-            <div className="relative rounded-2xl p-4" style={glassKpi}>
+            <div className="relative rounded-2xl p-3 sm:p-4" style={glassKpi}>
               <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.4), transparent)" }} />
-              <p className="text-[9px] font-semibold tracking-[0.16em] text-white/40 uppercase mb-2" style={{ fontFamily: JAKARTA }}>Calorías mant.</p>
-              <p className={`text-[34px] leading-none font-semibold tabular-nums ${maintenance.maintenance != null ? "text-white" : "text-white/30"}`} style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
+              <p className="text-[8px] sm:text-[9px] font-semibold tracking-[0.12em] text-white/40 uppercase mb-1.5" style={{ fontFamily: JAKARTA }}>Mant.</p>
+              <p className={`text-[22px] sm:text-[30px] leading-none font-semibold tabular-nums ${maintenance.maintenance != null ? "text-white" : "text-white/30"}`} style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
                 {maintenance.maintenance != null ? maintenance.maintenance.toLocaleString('en-US') : "—"}
               </p>
-              <p className={`text-[11px] mt-1 ${maintenance.maintenance != null ? "text-white/35" : "text-white/25"}`} style={{ fontFamily: JAKARTA }}>
-                {maintenance.confidence === "high" ? "alta confianza" : maintenance.confidence === "medium" ? "confianza media" : maintenance.confidence === "low" ? "baja confianza" : "≥10 días necesarios"}
+              <p className={`text-[9px] sm:text-[10px] mt-1 ${maintenance.maintenance != null ? "text-white/35" : "text-white/25"}`} style={{ fontFamily: JAKARTA }}>
+                {maintenance.confidence === "high" ? "alta" : maintenance.confidence === "medium" ? "media" : maintenance.confidence === "low" ? "baja" : "≥10 días"}
               </p>
             </div>
 
-            <div className="relative rounded-2xl p-4" style={glassKpi}>
+            <div className="relative rounded-2xl p-3 sm:p-4" style={glassKpi}>
               <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.4), transparent)" }} />
-              <p className="text-[9px] font-semibold tracking-[0.16em] text-white/40 uppercase mb-2" style={{ fontFamily: JAKARTA }}>Kcal avg 14d</p>
-              <p className="text-[34px] leading-none font-semibold text-white tabular-nums" style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
+              <p className="text-[8px] sm:text-[9px] font-semibold tracking-[0.12em] text-white/40 uppercase mb-1.5" style={{ fontFamily: JAKARTA }}>Avg 14d</p>
+              <p className="text-[22px] sm:text-[30px] leading-none font-semibold text-white tabular-nums" style={{ fontFamily: OUTFIT, letterSpacing: "-0.025em" }}>
                 {kcalAvg14 != null ? kcalAvg14.toLocaleString('en-US') : "—"}
               </p>
               {goals.kcalTarget != null && kcalAvg14 != null && (
-                <p className={`text-[11px] mt-1 ${Math.abs(kcalAvg14 - goals.kcalTarget) <= goals.kcalTarget * 0.05 ? "text-[#6ee7a0]" : kcalAvg14 > goals.kcalTarget ? "text-[#fca5a5]" : "text-[#93c5fd]"}`} style={{ fontFamily: JAKARTA }}>
-                  target {goals.kcalTarget.toLocaleString('en-US')} kcal
+                <p className={`text-[9px] sm:text-[10px] mt-1 ${Math.abs(kcalAvg14 - goals.kcalTarget) <= goals.kcalTarget * 0.05 ? "text-[#6ee7a0]" : kcalAvg14 > goals.kcalTarget ? "text-[#fca5a5]" : "text-[#93c5fd]"}`} style={{ fontFamily: JAKARTA }}>
+                  obj {goals.kcalTarget.toLocaleString('en-US')}
                 </p>
               )}
             </div>

@@ -56,28 +56,26 @@ export const useMonitoringData = () => {
         setLoading(true);
         setError(null);
 
-        const urlArgs = new URLSearchParams({
-          action: 'fetchDashboard',
-          token: SHARED_TOKEN,
-          sheetId: sheetId,
+        const res = await fetch(scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            token: SHARED_TOKEN,
+            action: 'fetchDashboard',
+            sheetId,
+          }),
         });
 
-        const finalUrl = `${scriptUrl}?${urlArgs.toString()}`;
-        const res = await fetch(finalUrl);
-
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error("No se pudo cargar la información.");
 
         const json = await res.json();
-        if (json.success && json.data) {
+        if (json && json.success && json.data) {
           if (mounted) setData(json.data);
         } else {
-          throw new Error(json.error || "Failed to fetch data");
+          throw new Error("No se pudo cargar la información.");
         }
-      } catch (err: unknown) {
-        console.error("Fetch monitoring data error:", err);
-        if (mounted) setError(err instanceof Error ? err.message : "An error occurred");
+      } catch {
+        if (mounted) setError("No se pudo cargar la información. Intenta de nuevo.");
       } finally {
         if (mounted) setLoading(false);
       }

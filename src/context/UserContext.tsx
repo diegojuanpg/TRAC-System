@@ -11,15 +11,10 @@ export interface User {
   email: string;
   name: string;
   picture: string;
-  /** URL of the coach's Data Logger script for this athlete */
   scriptUrl: string | null;
-  /** ID of the athlete's spreadsheet */
   sheetId: string | null;
-  /** Name of the athlete from the allowed list */
   athleteName: string | null;
-  /** True when logged in as admin/coach */
   isAdmin?: boolean;
-  /** Full athlete list — only populated for admin */
   athletes?: AthleteEntry[];
 }
 
@@ -33,34 +28,59 @@ const UserContext = createContext<UserContextType>({
   setUser: () => {},
 });
 
-const DEV_MOCK_USER: User = {
-  email: "atleta@demo.com",
-  name: "Atleta de Prueba",
-  picture: "https://ui-avatars.com/api/?name=Atleta+Prueba&background=random",
-  scriptUrl: "mock_url",
-  sheetId: "mock_sheet",
-  athleteName: "Atleta de Prueba",
-};
+const STORAGE_KEY = "trac_user";
+
+const DEV_MOCK_USER: User | null = import.meta.env.DEV
+  ? {
+      email: "atleta@demo.com",
+      name: "Atleta de Prueba",
+      picture: "https://ui-avatars.com/api/?name=Atleta+Prueba&background=random",
+      scriptUrl: "mock_url",
+      sheetId: "mock_sheet",
+      athleteName: "Atleta de Prueba",
+    }
+  : null;
+
+function loadStoredUser(): User | null {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      typeof parsed.email !== "string"
+    ) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed as User;
+  } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUserState] = useState<User | null>(() => {
-    // Production: restore from localStorage
-    const saved = localStorage.getItem("trac_user");
-    if (saved) {
-      try { return JSON.parse(saved) as User; } catch { /* fall through */ }
+    const stored = loadStoredUser();
+    if (stored) return stored;
+    if (import.meta.env.DEV && !import.meta.env.VITE_ROUTER_SCRIPT_URL) {
+      return DEV_MOCK_USER;
     }
-    // Dev only: mock user when no router URL configured
-    if (!import.meta.env.VITE_ROUTER_SCRIPT_URL) return DEV_MOCK_USER;
     return null;
   });
 
   const setUser = (u: User | null) => {
     setUserState(u);
-    if (u) localStorage.setItem("trac_user", JSON.stringify(u));
-    else localStorage.removeItem("trac_user");
+    try {
+      if (u) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+      else sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* storage may be disabled */
+    }
   };
 
-  // Refresh routing info from Router Script in the background
   useEffect(() => {
     const refreshRouting = async () => {
       if (!user?.email) return;
@@ -68,15 +88,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       try {
         const routerUrl = import.meta.env.VITE_ROUTER_SCRIPT_URL;
         const token = import.meta.env.VITE_SHARED_TOKEN;
-        
+
         if (!routerUrl || !token) return;
 
-        const url = new URL(routerUrl);
-        url.searchParams.set("action", "lookup");
-        url.searchParams.set("token", token);
-        url.searchParams.set("email", user.email);
-
-        const res = await fetch(url.toString());
+        const res = await fetch(routerUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            token,
+            action: "lookup",
+            email: user.email,
+          }),
+        });
         const json = await res.json();
 
         if (json.success && json.data) {
@@ -88,16 +111,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             athleteName !== user.athleteName ||
             isAdmin !== user.isAdmin
           ) {
-            console.log("User background refresh: Updated routing info.");
-            setUser({ ...user, scriptUrl, sheetId, athleteName, isAdmin: !!isAdmin, athletes: athletes ?? user.athletes });
+            setUser({
+              ...user,
+              scriptUrl,
+              sheetId,
+              athleteName,
+              isAdmin: !!isAdmin,
+              athletes: athletes ?? user.athletes,
+            });
           }
         } else if (json.error === "Atleta no encontrado en la allowed list.") {
-          // If athlete was removed from allowed list, logout automatically
-          console.warn("User background refresh: Athlete no longer authorized. Logging out.");
           setUser(null);
         }
-      } catch (err) {
-        console.error("User background refresh error:", err);
+      } catch {
+        /* silent — non-critical background refresh */
       }
     };
 

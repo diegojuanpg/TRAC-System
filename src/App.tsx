@@ -35,15 +35,7 @@ const AppRoutes = () => (
       <Route path="/nutrition" element={<PrivateRoute><NutritionDashboard /></PrivateRoute>} />
       <Route path="/monitoring" element={<PrivateRoute><MonitoringDashboard /></PrivateRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-      
-      {/* VERBOSE CATCH-ALL FOR DEBUGGING VERCEL */}
-      <Route path="*" element={
-        <div style={{ padding: 20, color: 'red', background: 'white' }}>
-          <h2>ROUTING ERROR</h2>
-          <p>Path not found: {window.location.pathname}</p>
-          <pre>{JSON.stringify(window.location, null, 2)}</pre>
-        </div>
-      } />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   </BrowserRouter>
 );

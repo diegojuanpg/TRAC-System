@@ -1,31 +1,32 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Activity, Utensils, LineChart, LogOut } from "lucide-react";
+import { ChevronRight, Apple, LogOut, HeartPulse, Users } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 const OUTFIT = "'Outfit', 'Plus Jakarta Sans', sans-serif";
 
-const CARDS = [
+const ATHLETE_CARDS = [
   {
     route: '/monitoring',
-    icon: LineChart,
-    title: 'Dashboard',
-    desc: 'Analiza tus métricas y estado de forma.',
-  },
-  {
-    route: '/morning',
-    icon: Activity,
-    title: 'Morning Survey',
-    desc: 'Cuestionario de bienestar matinal.',
+    icon: HeartPulse,
+    title: 'Readiness Dashboard',
+    desc: 'Analiza tu fatiga y recuperación.',
   },
   {
     route: '/nutrition',
-    icon: Utensils,
-    title: 'Nutrition',
+    icon: Apple,
+    title: 'Nutrition Dashboard',
     desc: 'Registra calorías, macros y actividad.',
   },
 ];
+
+const ADMIN_CARD = {
+  route: '/admin',
+  icon: Users,
+  title: 'Admin Panel',
+  desc: 'Gestiona tus atletas y sus dashboards.',
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -35,6 +36,8 @@ const Index = () => {
     navigate('/login');
     return null;
   }
+
+  const CARDS = user.isAdmin ? [ADMIN_CARD, ...ATHLETE_CARDS] : ATHLETE_CARDS;
 
   const firstName = user?.name?.split(' ')[0] || user?.athleteName?.split(' ')[0];
 
@@ -139,8 +142,9 @@ const Index = () => {
         whileTap={{ scale: 0.95 }}
         onClick={handleLogout}
         aria-label="Cerrar sesión"
-        className="absolute top-5 right-5 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium text-white/70 hover:text-white transition-colors"
+        className="absolute right-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium text-white/70 hover:text-white transition-colors"
         style={{
+          top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))',
           fontFamily: JAKARTA,
           background: 'linear-gradient(135deg, hsla(0,0%,100%,0.1) 0%, hsla(0,0%,100%,0.04) 100%)',
           backdropFilter: 'blur(20px) saturate(160%)',
