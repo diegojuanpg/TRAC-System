@@ -64,15 +64,11 @@ const Login = () => {
               return;
             }
 
-            const routerRes = await fetch(ROUTER_URL, {
-              method: "POST",
-              headers: { "Content-Type": "text/plain" },
-              body: JSON.stringify({
-                token: SHARED_TOKEN,
-                action: "lookup",
-                email,
-              }),
-            });
+            const routerUrl = new URL(ROUTER_URL);
+            routerUrl.searchParams.set("action", "lookup");
+            routerUrl.searchParams.set("token", SHARED_TOKEN);
+            routerUrl.searchParams.set("email", email);
+            const routerRes = await fetch(routerUrl.toString());
             const routerJson = await routerRes.json();
 
             if (!routerJson.success || !routerJson.data) {

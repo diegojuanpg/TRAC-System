@@ -56,15 +56,12 @@ export const useMonitoringData = () => {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            token: SHARED_TOKEN,
-            action: 'fetchDashboard',
-            sheetId,
-          }),
+        const urlArgs = new URLSearchParams({
+          action: 'fetchDashboard',
+          token: SHARED_TOKEN,
+          sheetId,
         });
+        const res = await fetch(`${scriptUrl}?${urlArgs.toString()}`);
 
         if (!res.ok) throw new Error("No se pudo cargar la información.");
 

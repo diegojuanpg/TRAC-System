@@ -47,9 +47,21 @@ async function postJson(scriptUrl: string, body: Record<string, unknown>) {
   }
 }
 
-// All reads use POST with token in body (no token in URL params).
 async function getJson(scriptUrl: string, params: Record<string, string>) {
-  return postJson(scriptUrl, params);
+  try {
+    const url = new URL(scriptUrl);
+    url.searchParams.set('token', SHARED_TOKEN);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(GENERIC_ERROR);
+    const json = await res.json();
+    if (!json || typeof json !== 'object') throw new Error(GENERIC_ERROR);
+    if (!json.success) throw new Error(GENERIC_ERROR);
+    return json;
+  } catch (err) {
+    if (err instanceof Error && err.message === GENERIC_ERROR) throw err;
+    throw new Error(GENERIC_ERROR);
+  }
 }
 
 /* ── Fetch nutrition rows ── */

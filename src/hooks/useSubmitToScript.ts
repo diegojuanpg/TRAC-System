@@ -40,16 +40,12 @@ export const useSubmitToScript = () => {
       throw new Error("Ya completaste el check-in de hoy.");
     }
 
-    const histRes = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        token: SHARED_TOKEN,
-        action: "fetchHistory",
-        sheetId,
-        rows: 50,
-      }),
-    });
+    const historyUrl = new URL(scriptUrl);
+    historyUrl.searchParams.set("action", "fetchHistory");
+    historyUrl.searchParams.set("token", SHARED_TOKEN);
+    historyUrl.searchParams.set("sheetId", sheetId);
+    historyUrl.searchParams.set("rows", "50");
+    const histRes = await fetch(historyUrl.toString());
     const histJson = await histRes.json();
 
     if (!histJson.success || !histJson.data) {

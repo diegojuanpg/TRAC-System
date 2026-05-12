@@ -91,15 +91,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         if (!routerUrl || !token) return;
 
-        const res = await fetch(routerUrl, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            token,
-            action: "lookup",
-            email: user.email,
-          }),
-        });
+        const url = new URL(routerUrl);
+        url.searchParams.set("action", "lookup");
+        url.searchParams.set("token", token);
+        url.searchParams.set("email", user.email);
+        const res = await fetch(url.toString());
         const json = await res.json();
 
         if (json.success && json.data) {
