@@ -27,12 +27,16 @@ interface UserContextType {
   user: User | null;
   setUser: (u: User | null) => void;
   refresh: () => Promise<void>;
+  authError: string | null;
+  clearAuthError: () => void;
 }
 
 const UserContext = createContext<UserContextType>({
   user: null,
   setUser: () => {},
   refresh: async () => {},
+  authError: null,
+  clearAuthError: () => {},
 });
 
 function toEntry(a: Athlete): AthleteEntry {
@@ -45,15 +49,24 @@ function toEntry(a: Athlete): AthleteEntry {
   };
 }
 
-async function buildUserFromSession(): Promise<User | null> {
+async function buildUserFromSession(): Promise<{ user: User | null; error: string | null }> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user?.email) return null;
+  if (!session?.user?.email) return { user: null, error: null };
 
   const email = session.user.email;
   const meta = session.user.user_metadata ?? {};
   const ctx = await resolveUserContext(email);
 
-  return {
+  // Gatekeeping: only registered coaches or athletes can access the app.
+  if (!ctx.coach && !ctx.athlete) {
+    await supabase.auth.signOut();
+    return {
+      user: null,
+      error: `La cuenta ${email} no está autorizada. Contacta al coach para que te registre.`,
+    };
+  }
+
+  const user: User = {
     email,
     name: meta.full_name ?? meta.name ?? ctx.coach?.name ?? ctx.athlete?.name ?? email.split("@")[0],
     picture: meta.avatar_url ?? meta.picture ?? "",
@@ -64,10 +77,12 @@ async function buildUserFromSession(): Promise<User | null> {
     athleteName: ctx.athlete?.name ?? null,
     athletes: ctx.athletes.map(toEntry),
   };
+  return { user, error: null };
 }
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUserState] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const setUser = (u: User | null) => {
     setUserState(u);
@@ -76,9 +91,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
   const refresh = useCallback(async () => {
-    const u = await buildUserFromSession();
+    const { user: u, error } = await buildUserFromSession();
     setUserState(u);
+    if (error) setAuthError(error);
   }, []);
 
   useEffect(() => {
@@ -90,7 +108,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [refresh]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, refresh }}>
+    <UserContext.Provider value={{ user, setUser, refresh, authError, clearAuthError }}>
       {children}
     </UserContext.Provider>
   );

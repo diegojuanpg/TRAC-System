@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ChevronLeft, LogOut, Users } from "lucide-react";
+import { Search, ChevronLeft, LogOut, Users, Plus, X } from "lucide-react";
 import { useUser, AthleteEntry } from "@/context/UserContext";
 import { DarkLayout } from "@/components/DarkLayout";
+import { supabase } from "@/lib/supabase";
 import NutritionDashboard from "./NutritionDashboard";
 
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -51,10 +52,132 @@ const AthleteCard = ({ athlete, onClick }: AthleteCardProps) => (
   </motion.button>
 );
 
+interface AddAthleteModalProps {
+  open: boolean;
+  coachId: string | null;
+  onClose: () => void;
+  onAdded: () => Promise<void>;
+}
+
+const AddAthleteModal = ({ open, coachId, onClose, onAdded }: AddAthleteModalProps) => {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setFirstName(""); setLastName(""); setEmail(""); setError(null);
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    const f = firstName.trim();
+    const l = lastName.trim();
+    const e = email.trim().toLowerCase();
+    if (!f || !l || !e) { setError("Completa todos los campos."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setError("Email inválido."); return; }
+
+    setSaving(true);
+    const { error: dbError } = await supabase
+      .from("athletes")
+      .insert({ email: e, name: `${f} ${l}`, coach_id: coachId });
+    setSaving(false);
+
+    if (dbError) {
+      if (dbError.code === "23505") setError("Ese email ya está registrado.");
+      else setError(dbError.message);
+      return;
+    }
+    await onAdded();
+    reset();
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "hsla(0,0%,0%,0.6)", backdropFilter: "blur(8px)" }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={glassPanel}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[20px] font-semibold text-white" style={{ fontFamily: OUTFIT, letterSpacing: "-0.02em" }}>
+                Añadir atleta
+              </h2>
+              <button onClick={onClose} className="text-white/40 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nombre"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 text-[13px] text-white placeholder-white/30 outline-none"
+                style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
+              />
+              <input
+                type="text"
+                placeholder="Apellido"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 text-[13px] text-white placeholder-white/30 outline-none"
+                style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
+              />
+              <input
+                type="email"
+                placeholder="Gmail"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 text-[13px] text-white placeholder-white/30 outline-none"
+                style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
+              />
+            </div>
+
+            {error && (
+              <p className="text-[12px] text-red-300 mt-3" style={{ fontFamily: JAKARTA }}>{error}</p>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="w-full mt-5 rounded-full py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+              style={{
+                fontFamily: JAKARTA,
+                background: "linear-gradient(135deg, hsla(0,0%,100%,0.18) 0%, hsla(0,0%,100%,0.06) 100%)",
+                border: "1.5px solid hsla(0,0%,100%,0.35)",
+                boxShadow: "inset 0 1px 0 hsla(0,0%,100%,0.3)",
+              }}
+            >
+              {saving ? "Guardando..." : "Añadir"}
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export default function AdminDashboard() {
-  const { user, setUser } = useUser();
+  const { user, setUser, refresh } = useUser();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AthleteEntry | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const athletes = user?.athletes ?? [];
 
@@ -118,28 +241,42 @@ export default function AdminDashboard() {
           {athletes.length} atletas registrados · Coach: {user?.email}
         </motion.p>
 
-        {/* Search */}
+        {/* Search + Add */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="relative mb-6"
+          className="flex gap-2 mb-6"
         >
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o email…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-2xl pl-9 pr-4 py-3 text-[13px] text-white placeholder-white/25 outline-none transition-all"
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full rounded-2xl pl-9 pr-4 py-3 text-[13px] text-white placeholder-white/25 outline-none transition-all"
+              style={{
+                fontFamily: JAKARTA,
+                background: "hsla(0,0%,100%,0.06)",
+                border: "1px solid hsla(0,0%,100%,0.1)",
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = "hsla(0,0%,100%,0.3)")}
+              onBlur={e => (e.currentTarget.style.borderColor = "hsla(0,0%,100%,0.1)")}
+            />
+          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            aria-label="Añadir atleta"
+            className="w-12 rounded-2xl flex items-center justify-center text-white/80 hover:text-white transition-colors flex-shrink-0"
             style={{
-              fontFamily: JAKARTA,
-              background: "hsla(0,0%,100%,0.06)",
-              border: "1px solid hsla(0,0%,100%,0.1)",
+              background: "linear-gradient(135deg, hsla(0,0%,100%,0.14) 0%, hsla(0,0%,100%,0.05) 100%)",
+              border: "1px solid hsla(0,0%,100%,0.18)",
+              boxShadow: "inset 0 1px 0 hsla(0,0%,100%,0.25)",
             }}
-            onFocus={e => (e.currentTarget.style.borderColor = "hsla(0,0%,100%,0.3)")}
-            onBlur={e => (e.currentTarget.style.borderColor = "hsla(0,0%,100%,0.1)")}
-          />
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </motion.div>
 
         {/* Athlete list */}
@@ -178,6 +315,13 @@ export default function AdminDashboard() {
         </AnimatePresence>
 
       </div>
+
+      <AddAthleteModal
+        open={modalOpen}
+        coachId={user?.coachId ?? null}
+        onClose={() => setModalOpen(false)}
+        onAdded={refresh}
+      />
     </DarkLayout>
   );
 }

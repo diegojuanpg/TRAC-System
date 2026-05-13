@@ -1,33 +1,11 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { useMonitoringData } from "@/hooks/useMonitoringData";
-import { type MonitoringData } from "@/hooks/useMonitoringData";
 import { DarkLayout } from "@/components/DarkLayout";
 import { useUser } from "@/context/UserContext";
-import { ChevronLeft, RefreshCw, Activity, FlaskConical, Plus, HeartPulse } from "lucide-react";
+import { ChevronLeft, RefreshCw, Activity, Plus, HeartPulse } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PremiumGauge } from "@/components/ui/PremiumGauge";
 import { StressThermometer } from "@/components/ui/StressThermometer";
-
-const MOCK_DATA: MonitoringData = {
-  athleteName: "Demo Atleta",
-  date: "2026-04-24",
-  measurementTime: "07:32",
-  alertLevel: 2,
-  ansProfile: "BALANCED_FATIGUED",
-  action: "Fatiga moderada detectada. Se recomienda sesión de baja intensidad o trabajo técnico. Evitar esfuerzo máximo hoy.",
-  readinessZ: -0.8,
-  fatigueZ: 0.6,
-  fitnessZ: 0.4,
-  stfLtfRatio: 1.18,
-  stf: 0.5,
-  ltf: -0.3,
-  soreness: { push: 2, pull: 1, legs: 3, injury: 0 },
-  peripheralStress: 0.8,
-  centralStress: 0.4,
-  readinessTrend: [],
-  last7Days: [],
-};
 
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 const OUTFIT = "'Outfit', 'Plus Jakarta Sans', sans-serif";
@@ -64,15 +42,12 @@ const formatFatigue10 = (z: number) => Math.max(0, Math.min(10, 5 - (z * 1.666))
 const MonitoringDashboard = () => {
   const { user } = useUser();
   const navigate = useNavigate();
-  const { data: realData, loading, error, refetch } = useMonitoringData();
-  const [useMock, setUseMock] = useState(false);
-
-  const data = useMock ? MOCK_DATA : realData;
+  const { data, loading, error, refetch } = useMonitoringData();
 
   if (!user) return null;
 
   const renderContent = () => {
-    if (!useMock && loading) {
+    if (loading) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
           <Activity className="w-8 h-8 text-white/30 animate-pulse" />
@@ -83,7 +58,7 @@ const MonitoringDashboard = () => {
       );
     }
 
-    if (!useMock && error) {
+    if (error) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4 px-6 text-center">
           <div className="text-[13px] text-red-300/90 uppercase tracking-[0.18em]" style={{ fontFamily: JAKARTA, fontWeight: 600 }}>
@@ -327,28 +302,6 @@ const MonitoringDashboard = () => {
             Nuevo registro
           </motion.button>
 
-          <button
-            onClick={() => setUseMock(v => !v)}
-            aria-label="Datos de prueba"
-            className="active:scale-95 transition-all duration-150 flex items-center gap-2 h-9 px-3.5 rounded-full"
-            style={{
-              background: useMock
-                ? 'linear-gradient(135deg, hsla(45,80%,65%,0.22) 0%, hsla(45,80%,65%,0.1) 100%)'
-                : 'linear-gradient(135deg, hsla(0,0%,100%,0.1) 0%, hsla(0,0%,100%,0.04) 100%)',
-              backdropFilter: 'blur(20px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-              border: useMock ? '1px solid hsla(45,80%,65%,0.4)' : '1px solid hsla(0,0%,100%,0.18)',
-              boxShadow: 'inset 0 1px 0 hsla(0,0%,100%,0.25)',
-              color: useMock ? 'hsla(45,80%,72%,1)' : 'hsla(0,0%,100%,0.6)',
-              fontFamily: JAKARTA,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-            }}
-          >
-            <FlaskConical className="w-3.5 h-3.5" />
-            {useMock ? 'DEMO' : 'DEMO'}
-          </button>
         </div>
       </div>
 

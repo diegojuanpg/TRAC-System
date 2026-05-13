@@ -7,10 +7,12 @@ import { supabase } from "@/lib/supabase";
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const Login = () => {
-  const { user, refresh } = useUser();
+  const { user, refresh, authError, clearAuthError } = useUser();
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const displayError = loginError ?? authError;
 
   // Mouse-parallax tilt
   const cardRef = useRef<HTMLDivElement>(null);
@@ -44,6 +46,7 @@ const Login = () => {
 
   const handleLogin = async () => {
     setLoginError(null);
+    clearAuthError();
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -280,7 +283,7 @@ const Login = () => {
             </motion.button>
 
             {/* Error */}
-            {loginError && !loginError.includes('VITE_GOOGLE_CLIENT_ID') && (
+            {displayError && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -292,7 +295,7 @@ const Login = () => {
                 }}
               >
                 <p className="text-[13px] text-red-300" style={{ fontFamily: JAKARTA }}>
-                  {loginError}
+                  {displayError}
                 </p>
               </motion.div>
             )}
