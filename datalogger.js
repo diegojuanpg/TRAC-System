@@ -214,15 +214,27 @@ function initNutritionTables(ssId) {
   var REQUIRED_COLS = CONFIG.REFEED_COL_START + CONFIG.REFEED_COL_COUNT - 1; // 75
   var REQUIRED_ROWS = 1000;
   try {
-    var ss = SpreadsheetApp.openById(ssId);
-    var sheet = ss.getSheetByName(db);
-    if (sheet) {
-      if (sheet.getMaxColumns() < REQUIRED_COLS) {
-        sheet.insertColumnsAfter(sheet.getMaxColumns(), REQUIRED_COLS - sheet.getMaxColumns());
-        console.log('[DataLogger] initNutritionTables: expanded to ' + REQUIRED_COLS + ' cols.');
-      }
-      if (sheet.getMaxRows() < REQUIRED_ROWS) {
-        sheet.insertRowsAfter(sheet.getMaxRows(), REQUIRED_ROWS - sheet.getMaxRows());
+    var meta = Sheets.Spreadsheets.get(ssId);
+    var sheetMeta = meta.sheets.find(function(s) { return s.properties.title === db; });
+    if (sheetMeta) {
+      var curCols = sheetMeta.properties.gridProperties.columnCount;
+      var curRows = sheetMeta.properties.gridProperties.rowCount;
+      if (curCols < REQUIRED_COLS || curRows < REQUIRED_ROWS) {
+        Sheets.Spreadsheets.batchUpdate({
+          requests: [{
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetMeta.properties.sheetId,
+                gridProperties: {
+                  columnCount: Math.max(curCols, REQUIRED_COLS),
+                  rowCount: Math.max(curRows, REQUIRED_ROWS)
+                }
+              },
+              fields: 'gridProperties.columnCount,gridProperties.rowCount'
+            }
+          }]
+        }, ssId);
+        console.log('[DataLogger] initNutritionTables: expanded sheet to ' + REQUIRED_COLS + ' cols.');
       }
     }
   } catch(e) {
