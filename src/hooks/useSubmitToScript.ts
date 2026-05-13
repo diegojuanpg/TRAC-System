@@ -3,6 +3,16 @@ import { buildCalculatedData, type FormData as TRACFormData } from "@/lib/tracEn
 
 const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
 
+async function proxyWrite(scriptUrl: string, params: Record<string, unknown>): Promise<unknown> {
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scriptUrl, params: { token: SHARED_TOKEN, ...params } }),
+  });
+  if (!res.ok) throw new Error('Error al guardar datos. Intenta de nuevo.');
+  return res.json();
+}
+
 export interface SubmitPayload {
   email: string;
   form_type: "morning_survey" | "nutrition";
@@ -58,13 +68,11 @@ export const useSubmitToScript = () => {
     );
 
     // Step 4: Write ALL recalculated rows back to the sheet
-    const writeUrl = new URL(scriptUrl);
-    writeUrl.searchParams.set("token", SHARED_TOKEN);
-    writeUrl.searchParams.set("action", "writeTRAC");
-    writeUrl.searchParams.set("sheetId", sheetId);
-    writeUrl.searchParams.set("rows", JSON.stringify(allRows));
-    const writeRes = await fetch(writeUrl.toString());
-    const writeJson = await writeRes.json();
+    const writeJson = await proxyWrite(scriptUrl, {
+      action: "writeTRAC",
+      sheetId,
+      rows: allRows,
+    }) as { success: boolean };
 
     if (!writeJson.success) {
       throw new Error("Error al guardar datos. Intenta de nuevo.");
@@ -74,12 +82,11 @@ export const useSubmitToScript = () => {
       const bw = parseFloat(String(formData.bodyweight));
       if (isFinite(bw) && bw > 0 && bw < 500) {
         try {
-          const syncUrl = new URL(scriptUrl);
-          syncUrl.searchParams.set("token", SHARED_TOKEN);
-          syncUrl.searchParams.set("action", "saveNutrition");
-          syncUrl.searchParams.set("sheetId", sheetId);
-          syncUrl.searchParams.set("data", JSON.stringify({ bodyweight: bw }));
-          await fetch(syncUrl.toString());
+          await proxyWrite(scriptUrl, {
+            action: "saveNutrition",
+            sheetId,
+            data: { bodyweight: bw },
+          });
         } catch {
           /* sync no crítico */
         }
@@ -98,13 +105,11 @@ export const useSubmitToScript = () => {
       throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
     }
 
-    const saveUrl = new URL(scriptUrl);
-    saveUrl.searchParams.set("token", SHARED_TOKEN);
-    saveUrl.searchParams.set("action", "saveNutrition");
-    saveUrl.searchParams.set("sheetId", sheetId);
-    saveUrl.searchParams.set("data", JSON.stringify(data));
-    const res = await fetch(saveUrl.toString());
-    const json = await res.json();
+    const json = await proxyWrite(scriptUrl, {
+      action: "saveNutrition",
+      sheetId,
+      data,
+    }) as { success: boolean };
 
     if (!json.success) {
       throw new Error("Error al guardar nutrición. Intenta de nuevo.");

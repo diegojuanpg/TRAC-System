@@ -29,8 +29,7 @@ function requireConfig(u: UserContext) {
 
 const GENERIC_ERROR = 'No se pudo completar la operación. Intenta de nuevo.';
 
-// Apps Script redirects POST → loses CORS headers. All requests use GET.
-// Complex body objects encoded as JSON in 'payload' param.
+// Reads: GET directly to Apps Script (doGet returns CORS headers without redirect).
 async function scriptRequest(scriptUrl: string, params: Record<string, unknown>) {
   try {
     const url = new URL(scriptUrl);
@@ -50,7 +49,27 @@ async function scriptRequest(scriptUrl: string, params: Record<string, unknown>)
   }
 }
 
-const postJson = scriptRequest;
+// Writes: POST to /api/proxy (Vercel serverless) which forwards as GET server-side.
+// Avoids Apps Script POST→redirect CORS issue.
+async function proxyWrite(scriptUrl: string, params: Record<string, unknown>) {
+  try {
+    const res = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scriptUrl, params: { token: SHARED_TOKEN, ...params } }),
+    });
+    if (!res.ok) throw new Error(GENERIC_ERROR);
+    const json = await res.json();
+    if (!json || typeof json !== 'object') throw new Error(GENERIC_ERROR);
+    if (!json.success) throw new Error(GENERIC_ERROR);
+    return json;
+  } catch (err) {
+    if (err instanceof Error && err.message === GENERIC_ERROR) throw err;
+    throw new Error(GENERIC_ERROR);
+  }
+}
+
+const postJson = proxyWrite;
 const getJson  = scriptRequest;
 
 /* ── Fetch nutrition rows ── */
@@ -111,7 +130,11 @@ export async function saveNutritionEntry(
 function normalizeGoals(raw: Record<string, unknown>): Goals {
   const num = (v: unknown): number | null => {
     if (v === null || v === undefined || v === '') return null;
-    const n = Number(v);
+    const cleaned = typeof v === 'string'
+      ? v.replace(/[​-‍﻿ ⁠]/g, '').trim()
+      : v;
+    if (cleaned === '') return null;
+    const n = Number(cleaned);
     return isNaN(n) ? null : n;
   };
   const str = (v: unknown): string | null => (v === null || v === undefined || v === '' ? null : String(v));
