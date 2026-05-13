@@ -122,7 +122,7 @@ const ChartCard = ({ title, range, onRange, children, rangeOptions }: {
 );
 
 interface Props {
-  athleteOverride?: { scriptUrl: string; sheetId: string; athleteName: string; email: string };
+  athleteOverride?: { athleteId: string; athleteName: string; email: string };
   onBack?: () => void;
 }
 
@@ -130,7 +130,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
   const navigate = useNavigate();
   const { user } = useUser();
   const { rows, goals, refeeds, loading, error, refetch, setState, effectiveCtx } = useNutritionData(
-    athleteOverride ? { scriptUrl: athleteOverride.scriptUrl, sheetId: athleteOverride.sheetId } : undefined
+    athleteOverride ? { athleteId: athleteOverride.athleteId } : undefined
   );
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);

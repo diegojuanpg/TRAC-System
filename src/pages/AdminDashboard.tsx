@@ -71,8 +71,7 @@ export default function AdminDashboard() {
     return (
       <NutritionDashboard
         athleteOverride={{
-          scriptUrl: selected.scriptUrl,
-          sheetId: selected.sheetId,
+          athleteId: selected.id,
           athleteName: selected.name,
           email: selected.email,
         }}

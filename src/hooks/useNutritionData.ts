@@ -139,16 +139,17 @@ export interface NutritionDataState {
 }
 
 interface UserOverride {
-  scriptUrl: string;
-  sheetId: string;
+  athleteId: string;
 }
 
 export function useNutritionData(userOverride?: UserOverride) {
   const { user } = useUser();
 
-  const effectiveScriptUrl = userOverride?.scriptUrl ?? user?.scriptUrl ?? null;
-  const effectiveSheetId   = userOverride?.sheetId   ?? user?.sheetId   ?? null;
-  const effectiveCtx = { scriptUrl: effectiveScriptUrl, sheetId: effectiveSheetId };
+  const effectiveAthleteId = userOverride?.athleteId ?? user?.athleteId ?? null;
+  const effectiveCtx = { athleteId: effectiveAthleteId };
+
+  // Demo/mock mode when running locally without a configured Supabase project
+  const isMock = !import.meta.env.VITE_SUPABASE_URL || !effectiveAthleteId && import.meta.env.DEV;
 
   const [state, setState] = useState<NutritionDataState>({
     rows: [],
@@ -159,13 +160,12 @@ export function useNutritionData(userOverride?: UserOverride) {
   });
 
   const refetch = useCallback(async () => {
-    // Mock mode: demo user with fake scriptUrl
-    if (effectiveScriptUrl === 'mock_url') {
+    if (isMock && !effectiveAthleteId) {
       setState({ rows: MOCK_ROWS, goals: MOCK_GOALS, refeeds: new Set(), loading: false, error: null });
       return;
     }
-    if (!effectiveScriptUrl || !effectiveSheetId) {
-      setState(s => ({ ...s, loading: false, error: 'Sin configuración de atleta.' }));
+    if (!effectiveAthleteId) {
+      setState(s => ({ ...s, loading: false, error: 'Sin atleta seleccionado.' }));
       return;
     }
     setState(s => ({ ...s, loading: true, error: null }));
@@ -181,12 +181,12 @@ export function useNutritionData(userOverride?: UserOverride) {
       setState(s => ({ ...s, loading: false, error: msg }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveScriptUrl, effectiveSheetId]);
+  }, [effectiveAthleteId, isMock]);
 
   useEffect(() => {
     refetch();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveScriptUrl, effectiveSheetId]);
+  }, [effectiveAthleteId]);
 
   return { ...state, refetch, setState, effectiveCtx };
 }

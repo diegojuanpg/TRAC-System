@@ -1,17 +1,14 @@
+/**
+ * Submit hook — Supabase backend.
+ * Morning survey: fetches history → recomputes all metrics client-side → upserts.
+ */
+
 import { useUser } from "@/context/UserContext";
+import { supabase } from "@/lib/supabase";
 import { buildCalculatedData, type FormData as TRACFormData } from "@/lib/tracEngine";
-
-const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
-
-async function proxyWrite(scriptUrl: string, params: Record<string, unknown>): Promise<unknown> {
-  const res = await fetch('/api/proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scriptUrl, params: { token: SHARED_TOKEN, ...params } }),
-  });
-  if (!res.ok) throw new Error('Error al guardar datos. Intenta de nuevo.');
-  return res.json();
-}
+import {
+  TRAC_HEADERS, HEADER_TO_DB, dbRowToDataRow, dataRowToDbRow, isoDateToSerial,
+} from "@/lib/tracDbMapping";
 
 export interface SubmitPayload {
   email: string;
@@ -19,106 +16,78 @@ export interface SubmitPayload {
   data: Record<string, unknown>;
 }
 
+const DATE_COL = HEADER_TO_DB['Date']; // 'date'
+
 export const useSubmitToScript = () => {
   const { user } = useUser();
 
-  /**
-   * Submit morning survey data:
-   * 1. Fetch history from the coach's Data Logger
-   * 2. Calculate all metrics locally (tracEngine)
-   * 3. Send ALL rows (recalculated) back to the Data Logger
-   */
   const submitMorningSurvey = async (formData: Record<string, unknown>): Promise<void> => {
-    const scriptUrl = user?.scriptUrl;
-    const sheetId = user?.sheetId;
+    const athleteId = user?.athleteId;
+    if (!athleteId) throw new Error("Atleta no configurado. Re-inicia sesión.");
 
-    if (!scriptUrl || !sheetId) {
-      throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
-    }
+    // 1. Already submitted today?
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: existingToday } = await supabase
+      .from('trac_entries')
+      .select('date')
+      .eq('athlete_id', athleteId)
+      .eq('date', today)
+      .maybeSingle();
+    if (existingToday) throw new Error("Ya completaste el check-in de hoy.");
 
-    const checkUrl = new URL(scriptUrl);
-    checkUrl.searchParams.set("token", SHARED_TOKEN);
-    checkUrl.searchParams.set("action", "check");
-    checkUrl.searchParams.set("sheetId", sheetId);
-    const checkRes = await fetch(checkUrl.toString());
-    const checkJson = await checkRes.json();
-    if (checkJson.success && checkJson.alreadySubmitted) {
-      throw new Error("Ya completaste el check-in de hoy.");
-    }
+    // 2. Fetch history (last 50 rows)
+    const { data: historyRows, error: histErr } = await supabase
+      .from('trac_entries')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .order(DATE_COL, { ascending: false })
+      .limit(50);
+    if (histErr) throw new Error("No se pudo obtener historial. Intenta de nuevo.");
 
-    const historyUrl = new URL(scriptUrl);
-    historyUrl.searchParams.set("action", "fetchHistory");
-    historyUrl.searchParams.set("token", SHARED_TOKEN);
-    historyUrl.searchParams.set("sheetId", sheetId);
-    historyUrl.searchParams.set("rows", "50");
-    const histRes = await fetch(historyUrl.toString());
-    const histJson = await histRes.json();
+    const history = (historyRows ?? [])
+      .reverse()
+      .map(r => dbRowToDataRow(r as Record<string, unknown>));
 
-    if (!histJson.success || !histJson.data) {
-      throw new Error("No se pudo obtener historial. Intenta de nuevo.");
-    }
+    // 3. Recompute everything client-side
+    const { allRows } = buildCalculatedData(formData as TRACFormData, TRAC_HEADERS, history);
 
-    const { headers, rows: historyRows } = histJson.data;
+    // 4. Upsert all rows back
+    const dbRows = allRows.map(row => dataRowToDbRow(row, athleteId));
+    const { error: writeErr } = await supabase
+      .from('trac_entries')
+      .upsert(dbRows, { onConflict: 'athlete_id,date' });
+    if (writeErr) throw new Error("Error al guardar datos: " + writeErr.message);
 
-    // Step 3: Calculate all metrics locally
-    const { allRows } = buildCalculatedData(
-      formData as TRACFormData,
-      headers,
-      historyRows
-    );
-
-    // Step 4: Write ALL recalculated rows back to the sheet
-    const writeJson = await proxyWrite(scriptUrl, {
-      action: "writeTRAC",
-      sheetId,
-      rows: allRows,
-    }) as { success: boolean };
-
-    if (!writeJson.success) {
-      throw new Error("Error al guardar datos. Intenta de nuevo.");
-    }
-
+    // 5. Sync bodyweight to nutrition_entries
     if (formData.bodyweight !== undefined && formData.bodyweight !== '' && formData.bodyweight !== null) {
       const bw = parseFloat(String(formData.bodyweight));
       if (isFinite(bw) && bw > 0 && bw < 500) {
-        try {
-          await proxyWrite(scriptUrl, {
-            action: "saveNutrition",
-            sheetId,
-            data: { bodyweight: bw },
-          });
-        } catch {
-          /* sync no crítico */
-        }
+        await supabase
+          .from('nutrition_entries')
+          .upsert(
+            { athlete_id: athleteId, date: today, bodyweight: bw },
+            { onConflict: 'athlete_id,date' },
+          );
       }
     }
   };
 
-  /**
-   * Submit nutrition data — no complex calculations needed.
-   */
   const submitNutrition = async (data: Record<string, unknown>): Promise<void> => {
-    const scriptUrl = user?.scriptUrl;
-    const sheetId = user?.sheetId;
+    const athleteId = user?.athleteId;
+    if (!athleteId) throw new Error("Atleta no configurado. Re-inicia sesión.");
 
-    if (!scriptUrl || !sheetId) {
-      throw new Error("Configuración de atleta no encontrada. Re-inicia sesión.");
+    const today = new Date().toISOString().slice(0, 10);
+    const clean: Record<string, unknown> = { athlete_id: athleteId, date: today };
+    for (const [k, v] of Object.entries(data)) {
+      if (v === null || v === '' || v === undefined) continue;
+      clean[k] = v;
     }
-
-    const json = await proxyWrite(scriptUrl, {
-      action: "saveNutrition",
-      sheetId,
-      data,
-    }) as { success: boolean };
-
-    if (!json.success) {
-      throw new Error("Error al guardar nutrición. Intenta de nuevo.");
-    }
+    const { error } = await supabase
+      .from('nutrition_entries')
+      .upsert(clean, { onConflict: 'athlete_id,date' });
+    if (error) throw new Error("Error al guardar nutrición: " + error.message);
   };
 
-  /**
-   * Unified submit function — maintains the same interface as before.
-   */
   const submit = async (payload: SubmitPayload): Promise<void> => {
     if (payload.form_type === "morning_survey") {
       await submitMorningSurvey(payload.data);
@@ -126,6 +95,9 @@ export const useSubmitToScript = () => {
       await submitNutrition(payload.data);
     }
   };
+
+  // Avoid unused warning
+  void isoDateToSerial;
 
   return { submit };
 };

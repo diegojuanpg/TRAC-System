@@ -257,7 +257,7 @@ interface Props {
   maintenanceKcal: number | null;
   rows: NutritionRow[];
   onSave: (g: Goals) => void;
-  saveContext?: { scriptUrl: string | null; sheetId: string | null };
+  saveContext?: { athleteId: string | null };
   prescribedBy?: string;
 }
 
@@ -535,7 +535,7 @@ export const GoalsPanel = ({ goals, currentWeight, maintenanceKcal, rows, onSave
         stepsTarget: parseFloat(stepsTarget) || null,
         waterTarget: goals.waterTarget,
       };
-      const ctx = saveContext ?? user;
+      const ctx = saveContext ?? { athleteId: user.athleteId };
       const byEmail = prescribedBy ?? user.email;
       await saveGoals(ctx, byEmail, payload, note);
       onSave(payload);
@@ -552,7 +552,7 @@ export const GoalsPanel = ({ goals, currentWeight, maintenanceKcal, rows, onSave
     if (!user) return;
     setHistLoading(true);
     try {
-      const h = await fetchGoalsHistory(user);
+      const h = await fetchGoalsHistory({ athleteId: user.athleteId });
       setHistory(h.reverse());
     } catch { /* ignore */ }
     setHistLoading(false);

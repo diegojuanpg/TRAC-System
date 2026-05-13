@@ -13,7 +13,7 @@ interface Props {
   rows: NutritionRow[];
   onSave: (g: Goals) => void;
   onClose: () => void;
-  saveContext?: { scriptUrl: string | null; sheetId: string | null };
+  saveContext?: { athleteId: string | null };
   prescribedBy?: string;
 }
 

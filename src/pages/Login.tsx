@@ -2,24 +2,13 @@ import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-
-// Google Identity Services is loaded via script tag in index.html
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
-const ROUTER_URL = import.meta.env.VITE_ROUTER_SCRIPT_URL as string;
-const SHARED_TOKEN = import.meta.env.VITE_SHARED_TOKEN as string;
+import { supabase } from "@/lib/supabase";
 
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const Login = () => {
-  const { setUser } = useUser();
+  const { user, refresh } = useUser();
   const navigate = useNavigate();
-  const clientRef = useRef<any>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,78 +30,32 @@ const Login = () => {
     my.set(0);
   };
 
+  // After OAuth callback Supabase parses the URL hash; refresh user then navigate.
   useEffect(() => {
-    const init = () => {
-      if (!window.google || !CLIENT_ID) return;
+    if (user) navigate("/");
+  }, [user, navigate]);
 
-      clientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: "openid email profile",
-        callback: async (response: any) => {
-          setLoading(true);
-          setLoginError(null);
-          try {
-            const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-              headers: { Authorization: `Bearer ${response.access_token}` },
-            });
-            const profile = await res.json();
-            const email = profile.email;
-
-            if (!email || typeof email !== "string") {
-              setLoginError("No se pudo verificar tu cuenta. Intenta de nuevo.");
-              setLoading(false);
-              return;
-            }
-
-            const routerUrl = new URL(ROUTER_URL);
-            routerUrl.searchParams.set("action", "lookup");
-            routerUrl.searchParams.set("token", SHARED_TOKEN);
-            routerUrl.searchParams.set("email", email);
-            const routerRes = await fetch(routerUrl.toString());
-            const routerJson = await routerRes.json();
-
-            if (!routerJson.success || !routerJson.data) {
-              setLoginError("Tu cuenta no está autorizada. Contacta a tu coach.");
-              setLoading(false);
-              return;
-            }
-
-            const { scriptUrl, sheetId, athleteName, isAdmin, athletes } = routerJson.data;
-
-            setUser({
-              email: profile.email,
-              name: profile.name || athleteName,
-              picture: profile.picture,
-              scriptUrl,
-              sheetId,
-              athleteName,
-              isAdmin: !!isAdmin,
-              athletes: athletes ?? [],
-            });
-
-            navigate("/");
-          } catch {
-            setLoginError("Error de conexión. Intenta de nuevo.");
-          } finally {
-            setLoading(false);
-          }
-        },
-      });
-    };
-
-    if (window.google) {
-      init();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google) { clearInterval(interval); init(); }
-      }, 100);
-      return () => clearInterval(interval);
+  useEffect(() => {
+    if (window.location.hash.includes("access_token")) {
+      setLoading(true);
+      refresh().finally(() => setLoading(false));
     }
-  }, [setUser, navigate]);
+  }, [refresh]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoginError(null);
-    clientRef.current?.requestAccessToken();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/login",
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    if (error) {
+      setLoginError("Error de conexión. Intenta de nuevo.");
+      setLoading(false);
+    }
   };
 
   return (
