@@ -155,6 +155,44 @@ function doGet(e) {
       return jsonResponse({ success: true, data: fetchRefeeds(sheetId) });
     }
 
+    // ── WRITE ACTIONS (routed via GET by Vercel proxy — same handlers as doPost) ──
+
+    if (action === 'check') {
+      return jsonResponse({ success: true, alreadySubmitted: checkAlreadySubmitted(sheetId) });
+    }
+
+    if (action === 'writeTRAC') {
+      var rows = JSON.parse(e.parameter.rows || '[]');
+      if (!rows || !Array.isArray(rows))
+        return jsonResponse({ success: false, error: 'rows[][] no proporcionado.' });
+      return jsonResponse({ success: true, result: writeTRACData(sheetId, rows) });
+    }
+
+    if (action === 'saveNutrition') {
+      var data = JSON.parse(e.parameter.data || '{}');
+      if (!data) return jsonResponse({ success: false, error: 'data no proporcionado.' });
+      return jsonResponse({ success: true, result: saveNutritionData(sheetId, data, e.parameter.date || null) });
+    }
+
+    if (action === 'saveNutritionGoals') {
+      var goals = JSON.parse(e.parameter.goals || '{}');
+      if (!goals) return jsonResponse({ success: false, error: 'goals no proporcionado.' });
+      return jsonResponse({ success: true, result: saveNutritionGoals(sheetId, goals, e.parameter.userEmail || '', e.parameter.note || '') });
+    }
+
+    if (action === 'toggleRefeed') {
+      var date = String(e.parameter.date || '').trim();
+      if (!date) return jsonResponse({ success: false, error: 'date no proporcionado.' });
+      return jsonResponse({ success: true, result: toggleRefeed(sheetId, date, e.parameter.refeed === 'true') });
+    }
+
+    if (action === 'appendTRAC') {
+      var row = JSON.parse(e.parameter.row || '[]');
+      if (!row || !Array.isArray(row))
+        return jsonResponse({ success: false, error: 'row[] no proporcionado.' });
+      return jsonResponse({ success: true, result: appendTRACRow(sheetId, row) });
+    }
+
     return ContentService.createTextOutput('TRAC DataLogger — OK').setMimeType(ContentService.MimeType.TEXT);
 
   } catch (err) {
@@ -171,6 +209,25 @@ function doGet(e) {
 function initNutritionTables(ssId) {
   var hRow = CONFIG.NUTR_HEADER_ROW;
   var db   = CONFIG.NUTR_DB;
+
+  // Ensure sheet has enough columns for all tables (need up to col BW = 75)
+  var REQUIRED_COLS = CONFIG.REFEED_COL_START + CONFIG.REFEED_COL_COUNT - 1; // 75
+  var REQUIRED_ROWS = 1000;
+  try {
+    var ss = SpreadsheetApp.openById(ssId);
+    var sheet = ss.getSheetByName(db);
+    if (sheet) {
+      if (sheet.getMaxColumns() < REQUIRED_COLS) {
+        sheet.insertColumnsAfter(sheet.getMaxColumns(), REQUIRED_COLS - sheet.getMaxColumns());
+        console.log('[DataLogger] initNutritionTables: expanded to ' + REQUIRED_COLS + ' cols.');
+      }
+      if (sheet.getMaxRows() < REQUIRED_ROWS) {
+        sheet.insertRowsAfter(sheet.getMaxRows(), REQUIRED_ROWS - sheet.getMaxRows());
+      }
+    }
+  } catch(e) {
+    console.warn('[DataLogger] initNutritionTables expand error: ' + e.message);
+  }
 
   function colRange(start, count) {
     return "'" + db + "'!" + columnToLetter(start) + hRow + ':' + columnToLetter(start + count - 1) + hRow;

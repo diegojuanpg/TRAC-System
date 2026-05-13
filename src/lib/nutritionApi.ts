@@ -61,10 +61,10 @@ async function proxyWrite(scriptUrl: string, params: Record<string, unknown>) {
     if (!res.ok) throw new Error(GENERIC_ERROR);
     const json = await res.json();
     if (!json || typeof json !== 'object') throw new Error(GENERIC_ERROR);
-    if (!json.success) throw new Error(GENERIC_ERROR);
+    if (!json.success) throw new Error(json.error ?? GENERIC_ERROR);
     return json;
   } catch (err) {
-    if (err instanceof Error && err.message === GENERIC_ERROR) throw err;
+    if (err instanceof Error) throw err;
     throw new Error(GENERIC_ERROR);
   }
 }
