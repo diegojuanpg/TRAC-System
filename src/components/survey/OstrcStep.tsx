@@ -46,7 +46,6 @@ export const OstrcStep = ({ value, onChange }: Props) => {
   const [q4, setQ4] = useState<number | null>(null);
   const [q5, setQ5] = useState<number>(0);
 
-  // Compute total and propagate
   useEffect(() => {
     if (hasIssue === false) { onChange(0); return; }
     if (hasIssue === true) {
@@ -56,40 +55,45 @@ export const OstrcStep = ({ value, onChange }: Props) => {
   }, [hasIssue, q2, q3, q4, q5, onChange]);
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
-      {/* Q1 gatekeeper */}
-      <div>
-        <p className="text-[12px] text-white/55 mb-2" style={{ fontFamily: JAKARTA }}>
-          ¿Tenés alguna molestia, dolor o lesión hoy?
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { val: false, label: 'No' },
-            { val: true, label: 'Sí' },
-          ].map(o => (
+    <div className="w-full max-w-md mx-auto flex flex-col items-center">
+      {/* Q1 gatekeeper — two big centered pills */}
+      <div className="w-full max-w-[320px] grid grid-cols-2 gap-3 mb-6">
+        {[
+          { val: false, label: 'No' },
+          { val: true,  label: 'Sí' },
+        ].map(o => {
+          const active = hasIssue === o.val;
+          return (
             <motion.button
               key={String(o.val)}
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02 }}
               onClick={() => setHasIssue(o.val)}
-              className="py-3 rounded-2xl text-[13px] font-semibold text-white transition-colors"
+              className="py-4 rounded-2xl text-[15px] font-semibold text-white transition-all"
               style={{
                 fontFamily: JAKARTA,
-                background: hasIssue === o.val
+                background: active
                   ? 'linear-gradient(135deg, hsla(0,0%,100%,0.22) 0%, hsla(0,0%,100%,0.08) 100%)'
                   : 'hsla(0,0%,100%,0.05)',
-                border: hasIssue === o.val
+                border: active
                   ? '1.5px solid hsla(0,0%,100%,0.5)'
                   : '1px solid hsla(0,0%,100%,0.12)',
+                boxShadow: active ? 'inset 0 1px 0 hsla(0,0%,100%,0.3)' : 'none',
               }}
             >
               {o.label}
             </motion.button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {hasIssue && (
-        <>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="w-full space-y-5"
+        >
           <OstrcGroup
             title="Participación en entrenamiento"
             value={q2}
@@ -109,28 +113,27 @@ export const OstrcStep = ({ value, onChange }: Props) => {
             options={Q4_OPTIONS}
           />
 
-          {/* Q5 severity slider */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[12px] text-white/55" style={{ fontFamily: JAKARTA }}>Severidad del síntoma</p>
-              <span className="text-[14px] text-white tabular-nums" style={{ fontFamily: JAKARTA, fontWeight: 600 }}>{q5}</span>
-            </div>
+          <div className="text-center">
+            <p className="text-[11px] tracking-[0.16em] text-white/55 uppercase mb-3" style={{ fontFamily: JAKARTA }}>
+              Severidad del síntoma
+            </p>
+            <span className="block text-[28px] text-white tabular-nums mb-3" style={{ fontFamily: JAKARTA, fontWeight: 600 }}>{q5}</span>
             <input
               type="range" min={0} max={25} step={1}
               value={q5}
               onChange={e => setQ5(parseInt(e.target.value))}
               className="w-full accent-white"
             />
-            <div className="flex justify-between text-[10px] text-white/40 mt-1" style={{ fontFamily: JAKARTA }}>
+            <div className="flex justify-between text-[10px] text-white/35 mt-1" style={{ fontFamily: JAKARTA }}>
               <span>Sin dolor</span><span>Severo</span>
             </div>
           </div>
-        </>
+        </motion.div>
       )}
 
       {hasIssue !== null && (
         <div
-          className="rounded-2xl px-4 py-3 flex items-center justify-between"
+          className="mt-6 w-full max-w-[280px] rounded-2xl px-4 py-3 flex items-center justify-between"
           style={{ background: 'hsla(0,0%,100%,0.04)', border: '1px solid hsla(0,0%,100%,0.08)' }}
         >
           <span className="text-[11px] tracking-[0.16em] text-white/45 uppercase" style={{ fontFamily: JAKARTA }}>OSTRC Score</span>
@@ -151,29 +154,35 @@ interface GroupProps {
 }
 
 const OstrcGroup = ({ title, value, options, onChange }: GroupProps) => (
-  <div>
-    <p className="text-[12px] text-white/55 mb-2" style={{ fontFamily: JAKARTA }}>{title}</p>
+  <div className="text-center">
+    <p className="text-[11px] tracking-[0.16em] text-white/55 uppercase mb-3" style={{ fontFamily: JAKARTA }}>
+      {title}
+    </p>
     <div className="space-y-1.5">
-      {options.map(o => (
-        <motion.button
-          key={o.value}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => onChange(o.value)}
-          className="w-full text-left px-3.5 py-2.5 rounded-xl flex items-center justify-between text-[12.5px] text-white/85"
-          style={{
-            fontFamily: JAKARTA,
-            background: value === o.value
-              ? 'linear-gradient(135deg, hsla(0,0%,100%,0.18) 0%, hsla(0,0%,100%,0.05) 100%)'
-              : 'hsla(0,0%,100%,0.04)',
-            border: value === o.value
-              ? '1.5px solid hsla(0,0%,100%,0.4)'
-              : '1px solid hsla(0,0%,100%,0.1)',
-          }}
-        >
-          <span>{o.label}</span>
-          <span className="text-[10px] text-white/35 tabular-nums">+{o.value}</span>
-        </motion.button>
-      ))}
+      {options.map(o => {
+        const active = value === o.value;
+        return (
+          <motion.button
+            key={o.value}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onChange(o.value)}
+            className="w-full text-left px-4 py-3 rounded-xl flex items-center justify-between text-[12.5px] text-white/85 transition-all"
+            style={{
+              fontFamily: JAKARTA,
+              background: active
+                ? 'linear-gradient(135deg, hsla(0,0%,100%,0.18) 0%, hsla(0,0%,100%,0.05) 100%)'
+                : 'hsla(0,0%,100%,0.04)',
+              border: active
+                ? '1.5px solid hsla(0,0%,100%,0.4)'
+                : '1px solid hsla(0,0%,100%,0.1)',
+              boxShadow: active ? 'inset 0 1px 0 hsla(0,0%,100%,0.22)' : 'none',
+            }}
+          >
+            <span>{o.label}</span>
+            <span className="text-[10px] text-white/35 tabular-nums shrink-0 ml-2">+{o.value}</span>
+          </motion.button>
+        );
+      })}
     </div>
   </div>
 );
