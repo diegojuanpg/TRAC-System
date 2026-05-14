@@ -190,55 +190,44 @@ create index if not exists refeeds_athlete_date_idx
 -- HELPER FUNCTIONS (used by RLS policies)
 -- ════════════════════════════════════════════════════════════════════════
 
--- Email of current authenticated user (from JWT)
+-- All helpers run SECURITY DEFINER so they bypass RLS on inner queries.
+-- Otherwise RLS policies that call these helpers would re-trigger the
+-- policies recursively → infinite loop → 500 errors.
+
 create or replace function auth_email() returns text
-language sql stable as $$
+language sql stable security definer set search_path = public as $$
   select coalesce(
     nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'email', ''),
     (auth.jwt() ->> 'email')
   );
 $$;
 
--- True if current user is an admin coach
 create or replace function is_admin() returns boolean
-language sql stable as $$
-  select exists (
-    select 1 from coaches
-    where email = auth_email() and is_admin = true
-  );
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from coaches where email = auth_email() and is_admin = true);
 $$;
 
--- True if current user is a coach (any coach, admin or not)
 create or replace function is_coach() returns boolean
-language sql stable as $$
+language sql stable security definer set search_path = public as $$
   select exists (select 1 from coaches where email = auth_email());
 $$;
 
--- Coach id of current user (null if not a coach)
 create or replace function current_coach_id() returns uuid
-language sql stable as $$
+language sql stable security definer set search_path = public as $$
   select id from coaches where email = auth_email();
 $$;
 
--- Athlete id of current user (null if not an athlete)
 create or replace function current_athlete_id() returns uuid
-language sql stable as $$
+language sql stable security definer set search_path = public as $$
   select id from athletes where email = auth_email();
 $$;
 
--- True if current user can access this athlete (self, their coach, or admin)
 create or replace function can_access_athlete(target_athlete_id uuid) returns boolean
-language sql stable as $$
-  select
-    is_admin()
-    or exists (
-      select 1 from athletes
-      where id = target_athlete_id
-        and (
-          email = auth_email()
-          or coach_id = current_coach_id()
-        )
-    );
+language sql stable security definer set search_path = public as $$
+  select is_admin() or exists (
+    select 1 from athletes where id = target_athlete_id
+      and (email = auth_email() or coach_id = current_coach_id())
+  );
 $$;
 
 
