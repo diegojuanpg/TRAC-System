@@ -44,14 +44,22 @@ export async function resolveUserContext(email: string): Promise<{
     .maybeSingle();
 
   if (coach) {
-    const { data: athletes } = await supabase
-      .from('athletes')
-      .select('id, email, name, coach_id')
-      .order('name', { ascending: true });
+    const [{ data: athletes }, { data: selfAthlete }] = await Promise.all([
+      supabase
+        .from('athletes')
+        .select('id, email, name, coach_id')
+        .order('name', { ascending: true }),
+      supabase
+        .from('athletes')
+        .select('id, email, name, coach_id')
+        .eq('email', email)
+        .maybeSingle(),
+    ]);
     return {
       isAdmin: !!coach.is_admin,
       coach: coach as Coach,
-      athlete: null,
+      // A coach may also be registered as an athlete (own readiness tracking).
+      athlete: (selfAthlete ?? null) as Athlete | null,
       athletes: (athletes ?? []) as Athlete[],
     };
   }
