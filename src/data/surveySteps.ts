@@ -158,7 +158,6 @@ export const STEPS: StepDefinition[] = [
 export const CONTEXT_OPTIONS = [
   { id: 'Normal', icon: 'circle-dot', label: 'Normal' },
   { id: 'Viaje', icon: 'plane', label: 'Viaje' },
-  { id: 'Estrés', icon: 'zap', label: 'Estrés extremo' },
   { id: 'Alcohol', icon: 'wine', label: 'Alcohol' },
   { id: 'Enfermedad', icon: 'thermometer', label: 'Enfermedad' },
   { id: 'Menstruación', icon: 'circle', label: 'Menstruación' },
