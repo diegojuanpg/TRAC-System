@@ -244,8 +244,8 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
 
         {/* ── PARTE 1 ── */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="space-y-3 mb-8">
-          <SectionTitle title="Calorías, macros y actividad" sub="Prescripción del coach y tu adherencia" />
-          <PrescriptionCard goals={goals} onEditClick={() => setGoalsOpen(true)} currentWeight={latestWeight} />
+          <SectionTitle title="Prescripción" sub="Prescripción del coach y tu adherencia" />
+          <PrescriptionCard goals={goals} onEditClick={() => setGoalsOpen(true)} currentWeight={latestWeight} canEdit={!!user?.isAdmin} />
           <AdherenceCalendar rows={rows} refeeds={refeeds} rangeDays={90} />
         </motion.section>
 

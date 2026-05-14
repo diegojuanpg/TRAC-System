@@ -110,9 +110,10 @@ interface Props {
   goals: Goals;
   onEditClick: () => void;
   currentWeight?: number | null;
+  canEdit?: boolean;
 }
 
-export const PrescriptionCard = ({ goals, onEditClick, currentWeight }: Props) => {
+export const PrescriptionCard = ({ goals, onEditClick, currentWeight, canEdit = true }: Props) => {
   const mc = modeColor[goals.mode] ?? "#6ee7a0";
   const kcalFmt  = goals.kcalTarget  != null ? goals.kcalTarget.toLocaleString("en-US")  : "—";
   const stepsFmt = goals.stepsTarget != null ? goals.stepsTarget.toLocaleString("en-US") : "—";
@@ -139,16 +140,18 @@ export const PrescriptionCard = ({ goals, onEditClick, currentWeight }: Props) =
       <div aria-hidden className="absolute inset-x-0 top-0 h-px"
         style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.35), transparent)" }} />
 
-      {/* Edit button — absolute top-left */}
-      <button
-        onClick={onEditClick}
-        aria-label="Editar"
-        className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold text-white/50 hover:text-white active:text-white transition-colors"
-        style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
-      >
-        <Settings2 className="w-3 h-3" />
-        Editar
-      </button>
+      {/* Edit button — only for admin/coach */}
+      {canEdit && (
+        <button
+          onClick={onEditClick}
+          aria-label="Editar"
+          className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold text-white/50 hover:text-white active:text-white transition-colors"
+          style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
+        >
+          <Settings2 className="w-3 h-3" />
+          Editar
+        </button>
+      )}
 
       {/* Mode badge row */}
       <div className="flex items-center gap-1.5 flex-wrap mb-2 pr-20 sm:pr-24">

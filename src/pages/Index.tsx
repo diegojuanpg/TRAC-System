@@ -17,7 +17,7 @@ const ATHLETE_CARDS = [
     route: '/nutrition',
     icon: Apple,
     title: 'Nutrition Dashboard',
-    desc: 'Registra calorías, macros y actividad.',
+    desc: 'Prescripción y registro nutricional.',
   },
 ];
 
