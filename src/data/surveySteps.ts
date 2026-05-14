@@ -6,7 +6,7 @@ export interface ScaleOption {
 
 export interface StepDefinition {
   id: string;
-  type: 'number' | 'scale' | 'tap' | 'ortho' | 'context' | 'training';
+  type: 'number' | 'scale' | 'tap' | 'ortho' | 'context' | 'training' | 'ostrc';
   category: string;
   question: string;
   hint: string;
@@ -69,18 +69,11 @@ export const STEPS: StepDefinition[] = [
     ]
   },
   {
-    id: 'lesion', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Lesión / Molestia',
-    hint: 'Estado de lesiones o molestias activas.',
-    options: [
-      { value: 1, label: 'Sin molestias. Recuperado.' },
-      { value: 2, label: 'Molestia leve. Aviso.' },
-      { value: 3, label: 'Molestia clara. Precaución.' },
-      { value: 4, label: 'Dolor moderado. Limitación funcional.' },
-      { value: 5, label: 'Muy alto. Incapacitante.' },
-    ]
+    id: 'lesion', type: 'ostrc', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Lesión / Molestia',
+    hint: 'Reporte estructurado (OSTRC). Si no hay dolor, terminás en un toque.',
   },
   {
-    id: 'cansancio', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Cansancio',
+    id: 'cansancio', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Fatiga general',
     hint: 'Nivel de fatiga general al despertar.',
     options: [
       { value: 1, label: 'Me siento muy descansado.' },
@@ -128,14 +121,14 @@ export const STEPS: StepDefinition[] = [
     ]
   },
   {
-    id: 'alimentacion', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Alimentación',
-    hint: 'Adherencia al plan nutricional de ayer.',
+    id: 'alimentacion', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Disponibilidad energética',
+    hint: '¿Sentís que comiste lo suficiente para tu carga de ayer?',
     options: [
-      { value: 1, label: 'Cumplí el 90% o más de lo pautado.' },
-      { value: 2, label: 'Cumplí la gran mayoría. Quizás varió una comida.' },
-      { value: 3, label: 'No seguí el plan pero salvé los macros.' },
-      { value: 4, label: 'Comí a deshoras o lo que había.' },
-      { value: 5, label: 'No cubrí necesidades energéticas.' },
+      { value: 1, label: 'Bien comido y energizado.' },
+      { value: 2, label: 'Adecuado. Sin déficit notorio.' },
+      { value: 3, label: 'Justo. Algo de hambre durante el día.' },
+      { value: 4, label: 'Faltó comida. Sensación de agotamiento.' },
+      { value: 5, label: 'Muy poco. Bajón energético severo.' },
     ]
   },
   {
@@ -147,6 +140,17 @@ export const STEPS: StepDefinition[] = [
       { value: 3, label: 'Me es indiferente.' },
       { value: 4, label: 'Tengo pocas ganas.' },
       { value: 5, label: 'No quiero entrenar.' },
+    ]
+  },
+  {
+    id: 'estres', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Estrés psicológico',
+    hint: 'Estrés percibido fuera del entrenamiento (trabajo, estudios, vida personal).',
+    options: [
+      { value: 1, label: 'Muy relajado. Sin estrés notable.' },
+      { value: 2, label: 'Calmo. Estrés bajo.' },
+      { value: 3, label: 'Estrés moderado. Manejable.' },
+      { value: 4, label: 'Estrés alto. Difícil de manejar.' },
+      { value: 5, label: 'Estrés extremo. Saturado.' },
     ]
   },
 ];

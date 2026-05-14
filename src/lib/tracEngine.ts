@@ -12,7 +12,9 @@ export const CONFIG_TRAC = {
   DB_HEADER_ROW: 6,
   DB_DATA_START_ROW: 7,
   DB_COL_COUNT: 60,
-  POTS_THRESHOLD: 30,
+  POTS_THRESHOLD: 30,            // adults (>=19)
+  POTS_THRESHOLD_TEEN: 40,       // adolescents 12-19 (NINDS/Mayo)
+  POTS_TEEN_AGE_CUTOFF: 19,
   // Lesión/Molestia uses a custom z-score:
   // - raw < INJURY_THRESHOLD → z = 0 (no signal, athlete reports "no injury")
   // - raw ≥ threshold → z over days that also crossed threshold (per-athlete baseline)
@@ -61,7 +63,8 @@ export const CONFIG_TRAC = {
     { search: "Horas de Sueño", dbCol: "Horas de Sueño", zCol: "Z-Horas de Sueño", category: "fitness", window: 28 },
     { search: "Calidad de Sueño", dbCol: "Calidad de Sueño", zCol: "Z-Calidad de Sueño", category: "fitness", window: 28 },
     { search: "Alimentación", dbCol: "Alimentacion", zCol: "Z-Alimentacion", category: "fitness", window: 28 },
-    { search: "Motivación", dbCol: "Motivación", zCol: "Z-Motivacion", category: "fitness", window: 28 }
+    { search: "Motivación", dbCol: "Motivación", zCol: "Z-Motivacion", category: "fitness", window: 28 },
+    { search: "Estrés Percibido", dbCol: "Estrés Percibido", zCol: "Z-Estrés Percibido", category: "fatigue", window: 28 }
   ],
 
   DERIVED_METRICS: [
@@ -77,7 +80,7 @@ export const CONFIG_TRAC = {
     "Z-OrthoResponse", "Z-PosturalCost",
     "Z-Push Soreness", "Z-Pull Soreness", "Z-Legs Soreness",
     "Z-Lesión/Molestia", "Z-Cansancio", "Z-Carga de Trabajo Percibida",
-    "Z-Tap Speed Test"
+    "Z-Tap Speed Test", "Z-Estrés Percibido"
   ],
 
   FITNESS_Z_COLS: [
@@ -122,6 +125,13 @@ export interface FormData {
   calidad_sueno?: number | string;
   alimentacion?: number | string;
   motivacion?: number | string;
+  estres?: number | string;
+  // sRPE injected from training_sessions (yesterday's session). Replaces legacy 1-5 carga scale.
+  srpe_yesterday?: number | string;
+  // OSTRC injury score 0-100 (from injury short-form) replaces legacy 1-5 lesion scale.
+  ostrc_score?: number | string;
+  // Athlete age in years (for age-stratified POTS threshold).
+  athlete_age?: number;
 }
 
 interface ZMetric {
@@ -177,7 +187,13 @@ export function buildCalculatedData(
   const orthoResponse = !isNaN(hr2) && !isNaN(hr1) ? hr2 - hr1 : '';
   const vagalRecovery = !isNaN(hr2) && !isNaN(hr3) ? hr2 - hr3 : '';
   const posturalCost = !isNaN(hr4) && !isNaN(hr1) ? hr4 - hr1 : '';
-  const pots_flag = typeof orthoResponse === 'number' ? orthoResponse > CONFIG_TRAC.POTS_THRESHOLD : '';
+  // Age-stratified POTS threshold: 40 bpm for 12-19, 30 bpm for >=19.
+  const age = typeof formData.athlete_age === 'number' ? formData.athlete_age : null;
+  const potsThreshold =
+    age !== null && age < CONFIG_TRAC.POTS_TEEN_AGE_CUTOFF
+      ? CONFIG_TRAC.POTS_THRESHOLD_TEEN
+      : CONFIG_TRAC.POTS_THRESHOLD;
+  const pots_flag = typeof orthoResponse === 'number' ? orthoResponse > potsThreshold : '';
 
   // ── Build the new row ──
   const newRow = buildNewRow(colMap, {
@@ -200,14 +216,25 @@ export function buildCalculatedData(
     'Push Soreness': convertWellness(formData.push_soreness, 'fatigue'),
     'Pull Soreness': convertWellness(formData.pull_soreness, 'fatigue'),
     'Legs Soreness': convertWellness(formData.legs_soreness, 'fatigue'),
-    'Lesión/Molestia': convertWellness(formData.lesion, 'fatigue'),
+    // OSTRC short-form (0-100) replaces 1-5 wellness scale for injury reporting.
+    // Falls back to legacy 1-5 lesion if ostrc_score not provided.
+    'Lesión/Molestia':
+      formData.ostrc_score !== undefined && formData.ostrc_score !== ''
+        ? parseFloat(String(formData.ostrc_score))
+        : convertWellness(formData.lesion, 'fatigue'),
     'Cansancio': convertWellness(formData.cansancio, 'fatigue'),
-    'Carga de Trabajo Percibida': convertWellness(formData.carga, 'fatigue'),
+    // sRPE (Foster) from training_sessions replaces legacy 1-5 carga scale.
+    // Falls back to legacy carga if srpe_yesterday absent.
+    'Carga de Trabajo Percibida':
+      formData.srpe_yesterday !== undefined && formData.srpe_yesterday !== ''
+        ? parseFloat(String(formData.srpe_yesterday))
+        : convertWellness(formData.carga, 'fatigue'),
     'Recuperación Percibida': convertWellness(formData.recuperacion, 'fitness'),
     'Horas de Sueño': convertWellness(formData.horas_sueno, 'fitness'),
     'Calidad de Sueño': convertWellness(formData.calidad_sueno, 'fitness'),
     'Alimentacion': convertWellness(formData.alimentacion, 'fitness'),
     'Motivación': convertWellness(formData.motivacion, 'fitness'),
+    'Estrés Percibido': convertWellness(formData.estres, 'fatigue'),
   });
 
   while (newRow.length < CONFIG_TRAC.DB_COL_COUNT) newRow.push('');
@@ -468,6 +495,36 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
     }
   }
 
+  // Pass 2.5: Foster Monotony & Strain over last 7d workload (sRPE).
+  // Monotony = mean / stdev — high monotony (>2) means workload is too uniform.
+  // Strain = weekly load × monotony — predictor of overtraining/illness.
+  const colWorkload = hMap['Carga de Trabajo Percibida'];
+  const colMonotony = hMap['Monotony'];
+  const colStrain = hMap['Strain'];
+  if (colWorkload !== undefined && (colMonotony !== undefined || colStrain !== undefined)) {
+    for (let i = 0; i < allData.length; i++) {
+      const start = Math.max(0, i - 6);
+      const window: number[] = [];
+      for (let j = start; j <= i; j++) {
+        const v = parseFloat(String(allData[j][colWorkload]));
+        if (!isNaN(v)) window.push(v);
+      }
+      if (window.length < 3) {
+        if (colMonotony !== undefined) allData[i][colMonotony] = '';
+        if (colStrain !== undefined) allData[i][colStrain] = '';
+        continue;
+      }
+      const mean = window.reduce((a, b) => a + b, 0) / window.length;
+      const variance = window.reduce((a, b) => a + (b - mean) ** 2, 0) / window.length;
+      const stdev = Math.max(Math.sqrt(variance), 1);
+      const monotony = mean / stdev;
+      const weeklyLoad = window.reduce((a, b) => a + b, 0);
+      const strain = weeklyLoad * monotony;
+      if (colMonotony !== undefined) allData[i][colMonotony] = monotony;
+      if (colStrain !== undefined) allData[i][colStrain] = strain;
+    }
+  }
+
   // Z-Readiness
   if (colReadiness !== undefined && zReadinessIdx !== undefined) {
     const contextIdx = hMap['Context_Flag'];
@@ -514,7 +571,20 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
       const zHR1 = zHR1Idx !== undefined ? parseFloat(String(allData[i][zHR1Idx])) : NaN;
       const zPostural = zPosturalIdx !== undefined ? parseFloat(String(allData[i][zPosturalIdx])) : NaN;
 
+      // Parasympathetic saturation flag (WHOOP-trap): low HR + high fatigue + low recovery.
+      // Vagal hyperactivity masking overtraining as "fresh".
+      const zCansancio = zCansancioIdx !== undefined ? parseFloat(String(allData[i][zCansancioIdx])) : NaN;
+      const zRecuperacionIdx = hMap['Z-Recuperación Percibida'];
+      const zRecov = zRecuperacionIdx !== undefined ? parseFloat(String(allData[i][zRecuperacionIdx])) : NaN;
+      const psatFlag =
+        !isNaN(zHR1) && zHR1 < -1.0 &&
+        !isNaN(zCansancio) && zCansancio > 1.0 &&
+        !isNaN(zRecov) && zRecov < -1.0;
+      const colPsat = hMap['Parasympathetic_Saturation'];
+      if (colPsat !== undefined) allData[i][colPsat] = psatFlag;
+
       if (insuffFlag === true) allData[i][colANS] = 'INSUFFICIENT_DATA';
+      else if (psatFlag) allData[i][colANS] = 'PARASYMPATHETIC_SATURATION';
       else if (!isNaN(zRead) && zRead > 0 && alertLvl === 0) allData[i][colANS] = 'OPTIMAL';
       else if (!isNaN(zOrthoResp) && zOrthoResp > 1.5) allData[i][colANS] = 'SNS_DOMINANT';
       else if (!isNaN(zHR1) && zHR1 < -1.0 && !isNaN(zPostural) && zPostural < -1.0) allData[i][colANS] = 'PSNS_DOMINANT';
@@ -557,8 +627,11 @@ export function calculateTRACAction(row: DataRow, hMap: HeaderMap): string {
   const zOrtho = hMap['Z-OrthoResponse'] !== undefined ? parseFloat(String(row[hMap['Z-OrthoResponse']])) : 0;
   const zTap = hMap['Z-Tap Speed Test'] !== undefined ? parseFloat(String(row[hMap['Z-Tap Speed Test']])) : 0;
   const insuffFlag = hMap['INSUFFICIENT_DATA'] !== undefined ? row[hMap['INSUFFICIENT_DATA']] : false;
+  const psatFlag = hMap['Parasympathetic_Saturation'] !== undefined ? row[hMap['Parasympathetic_Saturation']] : false;
+  const monotony = hMap['Monotony'] !== undefined ? parseFloat(String(row[hMap['Monotony']])) : NaN;
 
-  if (potsFlag === true) return 'REPOSO TOTAL - Delta ortostático crítico (>30bpm). No entrenar.';
+  if (potsFlag === true) return 'BANDERA ROJA MÉDICA - Delta ortostático patológico (POTS). No entrenar; derivar a evaluación clínica.';
+  if (psatFlag === true) return 'SATURACIÓN PARASIMPÁTICA - HR baja sostenida con fatiga alta y recuperación pobre. Sobreentrenamiento crónico probable. Descarga obligatoria 7-10 días + chequeo médico.';
   if (insuffFlag === true) return 'Datos Insuficientes - Entrenar según sensaciones hasta completar ventana de 7 días.';
 
   const readinessTexts: Record<number, string> = {
@@ -584,6 +657,11 @@ export function calculateTRACAction(row: DataRow, hMap: HeaderMap): string {
     } else if (sncFatigue) {
       action += 'Fatiga SNC detectada. Se recomienda bajar el VOLUMEN (series/repeticiones).';
     }
+  }
+
+  // Foster monotony alert — uniform load week predicts illness/overtraining.
+  if (!isNaN(monotony) && monotony > 2.0) {
+    action += '\n\nMonotonía elevada (>' + monotony.toFixed(1) + '). Incluí variación de carga (día fácil/duro/medio) para evitar adaptación bloqueada.';
   }
 
   return action;

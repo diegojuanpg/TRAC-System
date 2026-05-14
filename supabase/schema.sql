@@ -20,6 +20,7 @@ create table if not exists athletes (
   email       text unique not null,
   name        text,
   coach_id    uuid references coaches(id) on delete set null,
+  birth_date  date,
   created_at  timestamptz default now()
 );
 
@@ -58,6 +59,7 @@ create table if not exists trac_entries (
   sleep_quality       numeric,
   nutrition_quality   numeric,
   motivation          numeric,
+  stress_perceived    numeric,
 
   -- z-scores
   z_tap_speed         numeric,
@@ -80,6 +82,7 @@ create table if not exists trac_entries (
   z_sleep_q           numeric,
   z_nutrition         numeric,
   z_motivation        numeric,
+  z_stress            numeric,
 
   -- composites
   fatigue             numeric,
@@ -95,6 +98,9 @@ create table if not exists trac_entries (
   trend_7d            text,
   alert_level         numeric,
   trac_action         text,
+  monotony            numeric,
+  strain              numeric,
+  parasympathetic_saturation boolean,
 
   created_at          timestamptz default now(),
   unique (athlete_id, date)

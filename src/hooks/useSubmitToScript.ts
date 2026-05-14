@@ -27,6 +27,7 @@ export const useSubmitToScript = () => {
 
     // 1. Already submitted today?
     const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const { data: existingToday } = await supabase
       .from('trac_entries')
       .select('date')
@@ -48,8 +49,39 @@ export const useSubmitToScript = () => {
       .reverse()
       .map(r => dbRowToDataRow(r as Record<string, unknown>));
 
+    // 2b. Enrich formData with yesterday's sRPE (from training_sessions) and athlete age.
+    // Also remap form-side keys to engine-side keys.
+    const enrichedFormData: Record<string, unknown> = { ...formData };
+
+    // OSTRC: lesion form field now stores 0-100 score. Map to engine's ostrc_score.
+    if (formData.lesion !== undefined && formData.lesion !== '') {
+      enrichedFormData.ostrc_score = formData.lesion;
+    }
+
+    const { data: prevSession } = await supabase
+      .from('training_sessions')
+      .select('srpe')
+      .eq('athlete_id', athleteId)
+      .eq('date', yesterday)
+      .maybeSingle();
+    if (prevSession && typeof prevSession.srpe === 'number') {
+      enrichedFormData.srpe_yesterday = prevSession.srpe;
+    }
+
+    const { data: athleteRow } = await supabase
+      .from('athletes')
+      .select('birth_date')
+      .eq('id', athleteId)
+      .maybeSingle();
+    if (athleteRow?.birth_date) {
+      const bd = new Date(athleteRow.birth_date);
+      const ageMs = Date.now() - bd.getTime();
+      const age = Math.floor(ageMs / (365.25 * 24 * 3600 * 1000));
+      if (age > 0 && age < 120) enrichedFormData.athlete_age = age;
+    }
+
     // 3. Recompute everything client-side
-    const { allRows } = buildCalculatedData(formData as TRACFormData, TRAC_HEADERS, history);
+    const { allRows } = buildCalculatedData(enrichedFormData as TRACFormData, TRAC_HEADERS, history);
 
     // 4. Upsert all rows back
     const dbRows = allRows.map(row => dataRowToDbRow(row, athleteId));

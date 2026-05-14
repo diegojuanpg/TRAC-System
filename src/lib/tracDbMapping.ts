@@ -10,16 +10,19 @@ export const TRAC_HEADERS = [
   'Push Soreness', 'Pull Soreness', 'Legs Soreness', 'Lesión/Molestia',
   'Cansancio', 'Carga de Trabajo Percibida', 'Recuperación Percibida',
   'Horas de Sueño', 'Calidad de Sueño', 'Alimentacion', 'Motivación',
+  'Estrés Percibido',
   'Z-Tap Speed Test', 'Z-Tap Variance',
   'Z-HR1', 'Z-HR2', 'Z-HR3', 'Z-HR4',
   'Z-OrthoResponse', 'Z-VagalRecovery', 'Z-PosturalCost',
   'Z-Push Soreness', 'Z-Pull Soreness', 'Z-Legs Soreness', 'Z-Lesión/Molestia',
   'Z-Cansancio', 'Z-Carga de Trabajo Percibida', 'Z-Recuperación Percibida',
   'Z-Horas de Sueño', 'Z-Calidad de Sueño', 'Z-Alimentacion', 'Z-Motivacion',
+  'Z-Estrés Percibido',
   'Fatigue', 'Fitness', 'Readiness', 'Z-Readiness',
   'Peripheral_Stress', 'Central_Stress',
   'STF', 'LTF', 'STF_LTF_Ratio', 'ANS_Profile', 'Trend_7d',
   'Alert_Level', 'TRAC_Action',
+  'Monotony', 'Strain', 'Parasympathetic_Saturation',
 ];
 
 /** Header → DB column name */
@@ -48,6 +51,7 @@ export const HEADER_TO_DB: Record<string, string> = {
   'Calidad de Sueño': 'sleep_quality',
   'Alimentacion': 'nutrition_quality',
   'Motivación': 'motivation',
+  'Estrés Percibido': 'stress_perceived',
   'Z-Tap Speed Test': 'z_tap_speed',
   'Z-Tap Variance': 'z_tap_var',
   'Z-HR1': 'z_hr1', 'Z-HR2': 'z_hr2', 'Z-HR3': 'z_hr3', 'Z-HR4': 'z_hr4',
@@ -65,6 +69,7 @@ export const HEADER_TO_DB: Record<string, string> = {
   'Z-Calidad de Sueño': 'z_sleep_q',
   'Z-Alimentacion': 'z_nutrition',
   'Z-Motivacion': 'z_motivation',
+  'Z-Estrés Percibido': 'z_stress',
   'Fatigue': 'fatigue',
   'Fitness': 'fitness',
   'Readiness': 'readiness',
@@ -78,6 +83,9 @@ export const HEADER_TO_DB: Record<string, string> = {
   'Trend_7d': 'trend_7d',
   'Alert_Level': 'alert_level',
   'TRAC_Action': 'trac_action',
+  'Monotony': 'monotony',
+  'Strain': 'strain',
+  'Parasympathetic_Saturation': 'parasympathetic_saturation',
 };
 
 /** DB column → header (inverse) */
@@ -125,6 +133,8 @@ export function dataRowToDbRow(row: CellValue[], athleteId: string): Record<stri
       out[col] = serialToISODate(v);
     } else if (header === 'POTS_Flag' || header === 'Protocol_Confirmed') {
       out[col] = v === null ? null : String(v);
+    } else if (header === 'Parasympathetic_Saturation') {
+      out[col] = v === null ? null : v === true || v === 'true';
     } else {
       out[col] = v;
     }

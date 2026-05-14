@@ -63,11 +63,12 @@ const AddAthleteModal = ({ open, coachId, onClose, onAdded }: AddAthleteModalPro
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
-    setFirstName(""); setLastName(""); setEmail(""); setError(null);
+    setFirstName(""); setLastName(""); setEmail(""); setBirthDate(""); setError(null);
   };
 
   const handleSubmit = async () => {
@@ -75,13 +76,15 @@ const AddAthleteModal = ({ open, coachId, onClose, onAdded }: AddAthleteModalPro
     const f = firstName.trim();
     const l = lastName.trim();
     const e = email.trim().toLowerCase();
-    if (!f || !l || !e) { setError("Completa todos los campos."); return; }
+    if (!f || !l || !e) { setError("Completa nombre, apellido y email."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setError("Email inválido."); return; }
 
     setSaving(true);
+    const payload: Record<string, unknown> = { email: e, name: `${f} ${l}`, coach_id: coachId };
+    if (birthDate) payload.birth_date = birthDate;
     const { error: dbError } = await supabase
       .from("athletes")
-      .insert({ email: e, name: `${f} ${l}`, coach_id: coachId });
+      .insert(payload);
     setSaving(false);
 
     if (dbError) {
@@ -147,6 +150,18 @@ const AddAthleteModal = ({ open, coachId, onClose, onAdded }: AddAthleteModalPro
                 className="w-full rounded-xl px-4 py-3 text-[13px] text-white placeholder-white/30 outline-none"
                 style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
               />
+              <div>
+                <label className="text-[10px] tracking-[0.14em] text-white/40 uppercase block mb-1.5 px-1" style={{ fontFamily: JAKARTA }}>
+                  Fecha de nacimiento (opcional)
+                </label>
+                <input
+                  type="date"
+                  value={birthDate}
+                  onChange={e => setBirthDate(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-[13px] text-white placeholder-white/30 outline-none"
+                  style={{ fontFamily: JAKARTA, background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}
+                />
+              </div>
             </div>
 
             {error && (
