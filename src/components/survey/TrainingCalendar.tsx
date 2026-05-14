@@ -132,13 +132,17 @@ const SessionModal = ({ open, date, existing, canEdit, saving, onClose, onSave, 
               <span className="text-[11px] tracking-[0.16em] text-white/55 uppercase block mb-2" style={{ fontFamily: JAKARTA }}>Duración</span>
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
-                  min={0}
-                  max={600}
-                  step={5}
-                  value={duration}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={String(duration)}
                   disabled={!canEdit}
-                  onChange={e => setDuration(parseInt(e.target.value || '0'))}
+                  onFocus={e => e.target.select()}
+                  onChange={e => {
+                    const cleaned = e.target.value.replace(/\D/g, '');
+                    const n = cleaned === '' ? 0 : parseInt(cleaned, 10);
+                    setDuration(Math.min(n, 600));
+                  }}
                   className="w-full rounded-xl px-4 py-3 text-[15px] text-white outline-none tabular-nums"
                   style={{
                     fontFamily: JAKARTA,
