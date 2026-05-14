@@ -6,7 +6,7 @@ export interface ScaleOption {
 
 export interface StepDefinition {
   id: string;
-  type: 'number' | 'scale' | 'tap' | 'ortho' | 'context';
+  type: 'number' | 'scale' | 'tap' | 'ortho' | 'context' | 'training';
   category: string;
   question: string;
   hint: string;
@@ -91,15 +91,8 @@ export const STEPS: StepDefinition[] = [
     ]
   },
   {
-    id: 'carga', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Carga de Trabajo',
-    hint: '¿Cómo sentiste la última sesión de entrenamiento?',
-    options: [
-      { value: 1, label: 'Sin entrenamiento / solo recuperación.' },
-      { value: 2, label: 'Carga baja.' },
-      { value: 3, label: 'Carga normal o moderada.' },
-      { value: 4, label: 'Alta carga de entrenamiento.' },
-      { value: 5, label: 'Muy alta carga de entrenamiento.' },
-    ]
+    id: 'carga', type: 'training', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Carga de Entrenamiento',
+    hint: 'Registrá tu sesión: RPE × duración. Tocá un día para agregar o editar.',
   },
   {
     id: 'recuperacion', type: 'scale', category: 'SUBJECTIVE QUESTIONNAIRE', question: 'Recuperación',

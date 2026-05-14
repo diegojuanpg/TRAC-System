@@ -13,6 +13,18 @@ export const CONFIG_TRAC = {
   DB_DATA_START_ROW: 7,
   DB_COL_COUNT: 60,
   POTS_THRESHOLD: 30,
+  // Lesión/Molestia uses a custom z-score:
+  // - raw < INJURY_THRESHOLD → z = 0 (no signal, athlete reports "no injury")
+  // - raw ≥ threshold → z over days that also crossed threshold (per-athlete baseline)
+  // - if <3 such days → fall back to fixed clinical mapping
+  INJURY_THRESHOLD: 2.5,
+  INJURY_CLINICAL_MAP: [
+    { max: 2.5,  z: 0 },     // none
+    { max: 5,    z: 0.7 },   // mild
+    { max: 7.5,  z: 1.5 },   // moderate
+    { max: 10.1, z: 2.5 },   // severe
+  ],
+  STDEV_FLOOR: 0.3,  // prevent variance collapse on near-constant metrics
   Z_WINDOW_DEFAULT: 28,
   Z_WINDOW_ORTHO: 14,
   STF_WINDOW: 7,
@@ -249,9 +261,19 @@ export function tracRecalculateZScores(allData: DataRow[], hMap: HeaderMap, metr
     const zColIdx = hMap[metric.zCol];
     if (colIdx === undefined || zColIdx === undefined) continue;
 
+    // Lesión/Molestia is handled separately with hybrid clinical scoring.
+    if (metric.zCol === 'Z-Lesión/Molestia') continue;
+
     const windowSize = metric.window || CONFIG_TRAC.Z_WINDOW_DEFAULT;
     const invertSign = (metric.zCol === 'Z-Tap Speed Test');
-    const isOptional = (metric.zCol === 'Z-Tap Variance' || metric.zCol === 'Z-Tap Pauses');
+    // Optional metrics: athletes may skip tap/orthostatic tests on any given day.
+    // When empty, z-score stays empty so composites use avgOfValid and skip them.
+    const OPTIONAL_Z_COLS = new Set([
+      'Z-Tap Speed Test', 'Z-Tap Variance', 'Z-Tap Pauses',
+      'Z-HR1', 'Z-HR2', 'Z-HR3', 'Z-HR4',
+      'Z-OrthoResponse', 'Z-VagalRecovery', 'Z-PosturalCost',
+    ]);
+    const isOptional = OPTIONAL_Z_COLS.has(metric.zCol as string);
 
     for (let i = 0; i < allData.length; i++) {
       const rawVal = allData[i][colIdx];
@@ -284,11 +306,53 @@ export function tracRecalculateZScores(allData: DataRow[], hMap: HeaderMap, metr
       const variance = windowValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / windowValues.length;
       const stdev = Math.sqrt(variance);
 
-      if (stdev === 0) { allData[i][zColIdx] = 0; continue; }
+      // Floor stdev to prevent variance collapse (near-constant inputs producing
+      // huge z spikes on first deviation).
+      const safeStdev = Math.max(stdev, CONFIG_TRAC.STDEV_FLOOR);
 
-      let z = (currentVal - mean) / stdev;
+      let z = (currentVal - mean) / safeStdev;
       if (invertSign) z = z * -1;
       allData[i][zColIdx] = z;
+    }
+  }
+
+  // ── Hybrid Lesión/Molestia z-score ──
+  const lesionRawIdx = hMap['Lesión/Molestia'];
+  const lesionZIdx = hMap['Z-Lesión/Molestia'];
+  if (lesionRawIdx !== undefined && lesionZIdx !== undefined) {
+    const threshold = CONFIG_TRAC.INJURY_THRESHOLD;
+    const window = CONFIG_TRAC.Z_WINDOW_DEFAULT;
+
+    const clinicalZ = (val: number): number => {
+      for (const tier of CONFIG_TRAC.INJURY_CLINICAL_MAP) {
+        if (val < tier.max) return tier.z;
+      }
+      return 2.5;
+    };
+
+    for (let i = 0; i < allData.length; i++) {
+      const raw = parseFloat(String(allData[i][lesionRawIdx]));
+      if (isNaN(raw)) { allData[i][lesionZIdx] = ''; continue; }
+      if (raw < threshold) { allData[i][lesionZIdx] = 0; continue; }
+
+      // Per-athlete baseline: only days where injury was actually reported.
+      const windowStart = Math.max(0, i - window + 1);
+      const injuryDays: number[] = [];
+      for (let j = windowStart; j <= i; j++) {
+        const v = parseFloat(String(allData[j][lesionRawIdx]));
+        if (!isNaN(v) && v >= threshold) injuryDays.push(v);
+      }
+
+      if (injuryDays.length < 3) {
+        // Cold start: not enough injury history → use clinical fallback.
+        allData[i][lesionZIdx] = clinicalZ(raw);
+        continue;
+      }
+
+      const mean = injuryDays.reduce((a, b) => a + b, 0) / injuryDays.length;
+      const variance = injuryDays.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / injuryDays.length;
+      const stdev = Math.max(Math.sqrt(variance), CONFIG_TRAC.STDEV_FLOOR);
+      allData[i][lesionZIdx] = (raw - mean) / stdev;
     }
   }
 }
@@ -358,9 +422,17 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
       const ortho = zOrthoRespIdx !== undefined ? parseFloat(String(allData[i][zOrthoRespIdx])) : NaN;
       const cansancio = zCansancioIdx !== undefined ? parseFloat(String(allData[i][zCansancioIdx])) : NaN;
       const sueno = zCalidadSuenoIdx !== undefined ? parseFloat(String(allData[i][zCalidadSuenoIdx])) : NaN;
-      
-      if (!isNaN(tap) && !isNaN(ortho) && !isNaN(cansancio) && !isNaN(sueno)) {
-        allData[i][colCentralStress] = (tap + ortho + cansancio - sueno) / 4;
+
+      // Central stress: positive components (tap, ortho, cansancio) and one inverted (sueno).
+      // Compute from whatever components are present so the score still exists when
+      // optional tests (tap/ortho) are skipped.
+      const positives = [tap, ortho, cansancio].filter(v => !isNaN(v));
+      const haveSueno = !isNaN(sueno);
+      if (positives.length > 0 || haveSueno) {
+        const posSum = positives.reduce((a, b) => a + b, 0);
+        const total = posSum - (haveSueno ? sueno : 0);
+        const n = positives.length + (haveSueno ? 1 : 0);
+        allData[i][colCentralStress] = total / n;
       } else {
         allData[i][colCentralStress] = '';
       }
@@ -416,8 +488,8 @@ export function tracRecalculateComposites(allData: DataRow[], hMap: HeaderMap): 
       if (windowValues.length < 7) { allData[i][zReadinessIdx] = 0; continue; }
       const mean = windowValues.reduce((a, b) => a + b, 0) / windowValues.length;
       const variance = windowValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / windowValues.length;
-      const stdev = Math.sqrt(variance);
-      allData[i][zReadinessIdx] = stdev === 0 ? 0 : (currentVal - mean) / stdev;
+      const stdev = Math.max(Math.sqrt(variance), CONFIG_TRAC.STDEV_FLOOR);
+      allData[i][zReadinessIdx] = (currentVal - mean) / stdev;
     }
   }
 

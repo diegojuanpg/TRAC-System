@@ -7,6 +7,7 @@ import { ScaleStep } from "@/components/survey/ScaleStep";
 import { ContextStep } from "@/components/survey/ContextStep";
 import { TapTestStep } from "@/components/survey/TapTestStep";
 import { OrthoStep } from "@/components/survey/OrthoStep";
+import TrainingCalendar from "@/components/survey/TrainingCalendar";
 import { SurveyIntro } from "@/components/survey/SurveyIntro";
 import { SurveySummary } from "@/components/survey/SurveySummary";
 import { SurveySuccess } from "@/components/survey/SurveySuccess";
@@ -40,6 +41,7 @@ const MorningSurvey = () => {
     if (step.type === 'scale') return formData[step.id] !== undefined;
     if (step.type === 'context') return formData.contexto !== undefined;
     if (step.type === 'tap') return formData.tap_total !== undefined;
+    if (step.type === 'training') return true;
     if (step.type === 'ortho') {
       return formData.hr1 !== undefined && formData.hr2 !== undefined &&
              formData.hr3 !== undefined && formData.hr4 !== undefined;
@@ -132,6 +134,10 @@ const MorningSurvey = () => {
         return <TapTestStep formData={formData} updateFormData={updateFormData} />;
       case 'ortho':
         return <OrthoStep formData={formData} updateFormData={updateFormData} onSkipToBW={handleSkipToBW} />;
+      case 'training':
+        return user?.athleteId ? <TrainingCalendar athleteId={user.athleteId} /> : (
+          <p className="text-[12px] text-white/50">Atleta no identificado.</p>
+        );
       default:
         return null;
     }
