@@ -24,18 +24,20 @@ export const ContextStep = ({ value, onChange }: ContextStepProps) => {
   const selected = value || 'Normal';
 
   return (
-    <div className="w-full max-w-md grid grid-cols-2 gap-1.5">
-      {CONTEXT_OPTIONS.map((opt, i) => {
+    <div className="w-full max-w-md mx-auto grid grid-cols-2 gap-1.5">
+      {CONTEXT_OPTIONS.map((opt) => {
         const Icon = iconMap[opt.icon];
         const isSelected = selected === opt.id;
-        
+        // Make 'Normal' span full width at the top so 2-col grid stays even for the rest.
+        const fullWidth = opt.id === 'Normal';
+
         return (
           <button
             key={opt.id}
             onClick={() => onChange(opt.id)}
             className={cn(
               "bg-white/[0.02] border border-white/[0.05] rounded-2xl py-4 flex flex-col items-center justify-center transition-all duration-300",
-              (i === 0 || opt.id === 'Otro') && "col-span-2",
+              fullWidth && "col-span-2",
               isSelected
                 ? "bg-white/[0.08] border-white/[0.25] shadow-[0_4px_20px_rgba(255,255,255,0.05)] scale-[1.02]"
                 : "hover:bg-white/[0.04] hover:border-white/[0.1] hover:scale-[1.01]"
@@ -49,7 +51,7 @@ export const ContextStep = ({ value, onChange }: ContextStepProps) => {
             </div>
             <div
               className={cn(
-                "text-[11px] uppercase tracking-[0.12em] transition-colors duration-300",
+                "text-[11px] uppercase tracking-[0.12em] transition-colors duration-300 text-center",
                 isSelected ? "text-white font-semibold" : "text-white/50 font-medium"
               )}
               style={{ fontFamily: JAKARTA }}
