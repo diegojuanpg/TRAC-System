@@ -581,3 +581,118 @@ export function weeklyAggregates(rows: NutritionRow[]): WeeklyAgg[] {
 
   return out;
 }
+
+/* ── Bodyweight data tables ── */
+
+/** Monday (ISO week start) for a YYYY-MM-DD date, local calendar. */
+export function weekStartMonday(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun
+  const monOffset = (day + 6) % 7;
+  d.setDate(d.getDate() - monOffset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dayNum = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dayNum}`;
+}
+
+/** Mon=1 … Sun=7 */
+export function weekdayIndexMon1(iso: string): number {
+  const day = new Date(iso + 'T00:00:00').getDay();
+  return day === 0 ? 7 : day;
+}
+
+function avgBodyweightInRange(
+  byDate: Map<string, number>,
+  fromISO: string,
+  toISO: string,
+): number | null {
+  let sum = 0;
+  let n = 0;
+  let cursor = fromISO;
+  while (cursor <= toISO) {
+    const v = byDate.get(cursor);
+    if (v !== undefined) {
+      sum += v;
+      n++;
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return n > 0 ? sum / n : null;
+}
+
+export interface BwRawRow {
+  date: string;
+  bodyweight: number;
+  ma7: number | null;
+}
+
+/** All bodyweight measurements with MA7 (chronological). */
+export function buildBodyweightRawRows(rows: NutritionRow[]): BwRawRow[] {
+  const withBw = rows
+    .filter((r): r is NutritionRow & { bodyweight: number } => r.bodyweight !== null && !isNaN(r.bodyweight))
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const ma7 = rollingMean(withBw.map(r => r.bodyweight), 7);
+  return withBw.map((r, i) => ({
+    date: r.date,
+    bodyweight: r.bodyweight,
+    ma7: ma7[i] != null ? parseFloat((ma7[i] as number).toFixed(2)) : null,
+  }));
+}
+
+export interface BwWeeklyDayRow {
+  date: string;
+  day: number; // 1=Mon … 7=Sun
+  weekStart: string;
+  bodyweight: number | null;
+  /**
+   * Avg(bodyweights in this calendar week through `date`) − avg(previous calendar week).
+   * Null if either side has no measurements.
+   */
+  deltaDia: number | null;
+}
+
+/**
+ * One row per calendar day in [fromISO, toISO].
+ * Delta = mean(this week so far) − mean(previous Mon–Sun week).
+ * Uses full `rows` history for averages (not only the visible window).
+ */
+export function buildBodyweightWeeklyRows(
+  rows: NutritionRow[],
+  fromISO: string,
+  toISO: string,
+): BwWeeklyDayRow[] {
+  if (fromISO > toISO) return [];
+
+  const byDate = new Map<string, number>();
+  for (const r of rows) {
+    if (r.bodyweight !== null && !isNaN(r.bodyweight)) {
+      byDate.set(r.date, r.bodyweight);
+    }
+  }
+
+  const out: BwWeeklyDayRow[] = [];
+  let cursor = fromISO;
+  while (cursor <= toISO) {
+    const weekStart = weekStartMonday(cursor);
+    const prevStart = addDays(weekStart, -7);
+    const prevEnd = addDays(weekStart, -1);
+    const lastWeekAvg = avgBodyweightInRange(byDate, prevStart, prevEnd);
+    const thisWeekAvgSoFar = avgBodyweightInRange(byDate, weekStart, cursor);
+    const deltaDia =
+      lastWeekAvg !== null && thisWeekAvgSoFar !== null
+        ? parseFloat((thisWeekAvgSoFar - lastWeekAvg).toFixed(2))
+        : null;
+
+    out.push({
+      date: cursor,
+      day: weekdayIndexMon1(cursor),
+      weekStart,
+      bodyweight: byDate.get(cursor) ?? null,
+      deltaDia,
+    });
+    cursor = addDays(cursor, 1);
+  }
+  return out;
+}

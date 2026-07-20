@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Plus, RefreshCw, Utensils } from "lucide-react";
+import { ChevronLeft, Plus, RefreshCw, Table2, Utensils } from "lucide-react";
 import {
   Line, Bar, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -14,6 +14,7 @@ import { PrescriptionCard } from "@/components/nutrition/PrescriptionCard";
 import { AdherenceCalendar } from "@/components/nutrition/AdherenceCalendar";
 import { GoalsModal } from "@/components/nutrition/GoalsModal";
 import { AddEntryModal } from "@/components/nutrition/AddEntryModal";
+import { WeightDataTablesModal } from "@/components/nutrition/WeightDataTablesModal";
 import {
   Goals, filterByRange, estimateMaintenance,
   rollingMean, weeklyAggregates,
@@ -104,17 +105,21 @@ const fmtDate = (iso: string) => {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 };
 
-const ChartCard = ({ title, range, onRange, children, rangeOptions }: {
+const ChartCard = ({ title, range, onRange, children, rangeOptions, action }: {
   title: string;
   range: number;
   onRange: (d: number) => void;
   children: React.ReactNode;
   rangeOptions?: typeof RANGES;
+  action?: React.ReactNode;
 }) => (
   <div className="relative rounded-2xl p-4 pb-3" style={glassPanel}>
     <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.28), transparent)" }} />
-    <div className="flex items-center justify-between mb-3">
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-white/40 uppercase" style={{ fontFamily: JAKARTA }}>{title}</p>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <p className="text-[10px] font-semibold tracking-[0.14em] text-white/40 uppercase truncate" style={{ fontFamily: JAKARTA }}>{title}</p>
+        {action}
+      </div>
       <RangeToggle value={range} onChange={onRange} options={rangeOptions} />
     </div>
     {children}
@@ -134,6 +139,7 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
   );
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
+  const [weightTablesOpen, setWeightTablesOpen] = useState(false);
 
   // Per-chart range state
   const [bwRange, setBwRange] = useState(60);
@@ -291,7 +297,27 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChartCard title="Peso corporal + MA7" range={bwRange} onRange={setBwRange}>
+            <ChartCard
+              title="Peso corporal + MA7"
+              range={bwRange}
+              onRange={setBwRange}
+              action={
+                <button
+                  type="button"
+                  onClick={() => setWeightTablesOpen(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold tracking-[0.06em] text-white/55 hover:text-white transition-colors shrink-0"
+                  style={{
+                    fontFamily: JAKARTA,
+                    background: "hsla(0,0%,100%,0.08)",
+                    border: "1px solid hsla(0,0%,100%,0.14)",
+                  }}
+                  title="Tabla de datos"
+                >
+                  <Table2 className="w-3 h-3" />
+                  Tabla
+                </button>
+              }
+            >
               <ResponsiveContainer width="100%" height={190}>
                 <ComposedChart data={bwData} margin={{ top: 4, right: 4, bottom: 0, left: -14 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -383,6 +409,11 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
         prescribedBy={user?.email ?? undefined}
       />
       <AddEntryModal open={entryOpen} onClose={() => setEntryOpen(false)} onSaved={refetch} />
+      <WeightDataTablesModal
+        open={weightTablesOpen}
+        rows={rows}
+        onClose={() => setWeightTablesOpen(false)}
+      />
     </DarkLayout>
   );
 }
