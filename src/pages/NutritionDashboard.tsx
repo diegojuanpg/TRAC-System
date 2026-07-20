@@ -413,6 +413,8 @@ export default function NutritionDashboard({ athleteOverride, onBack }: Props) {
         open={weightTablesOpen}
         rows={rows}
         onClose={() => setWeightTablesOpen(false)}
+        saveContext={effectiveCtx}
+        onSaved={refetch}
       />
     </DarkLayout>
   );

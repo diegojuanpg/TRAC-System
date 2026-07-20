@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { Check, Loader2, Pencil, X } from "lucide-react";
 import {
   NutritionRow,
   todayLocalISO,
@@ -9,6 +9,7 @@ import {
   buildBodyweightWeeklyRows,
   BwWeeklyDayRow,
 } from "@/lib/nutritionMath";
+import { saveNutritionEntry } from "@/lib/nutritionApi";
 
 const JAKARTA = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 const OUTFIT = "'Outfit', 'Plus Jakarta Sans', sans-serif";
@@ -30,6 +31,8 @@ interface Props {
   open: boolean;
   rows: NutritionRow[];
   onClose: () => void;
+  saveContext: { athleteId: string | null };
+  onSaved: () => void;
 }
 
 const fmtDate = (iso: string) => {
@@ -45,7 +48,8 @@ const fmtDelta = (v: number | null) => {
 
 const deltaColor = (v: number | null) => {
   if (v === null || v === 0) return "rgba(255,255,255,0.45)";
-  return v > 0 ? "#fca5a5" : "#6ee7a0";
+  // Gain (weight up) green · loss (weight down) red
+  return v > 0 ? "#6ee7a0" : "#fca5a5";
 };
 
 function groupByWeek(rows: BwWeeklyDayRow[]): { weekStart: string; weekIndex: number; days: BwWeeklyDayRow[] }[] {
@@ -83,7 +87,240 @@ const tdStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
+function parseWeight(raw: string): number | null | "invalid" {
+  const t = raw.trim().replace(",", ".");
+  if (t === "") return null;
+  const n = parseFloat(t);
+  if (!isFinite(n) || n <= 0 || n > 400) return "invalid";
+  return Math.round(n * 100) / 100;
+}
+
+type CellStatus = "idle" | "saving" | "saved" | "error";
+
+interface EditableBwProps {
+  date: string;
+  value: number | null;
+  saveContext: { athleteId: string | null };
+  onSaved: () => void;
+  align?: "left" | "right";
+}
+
+const EditableBwCell = ({ date, value, saveContext, onSaved, align = "right" }: EditableBwProps) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [status, setStatus] = useState<CellStatus>("idle");
+  const [err, setErr] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
+  // Prevent blur-from-button-click race: ignore blur when clicking Guardar/Cancelar
+  const ignoreBlurRef = useRef(false);
+
+  useEffect(() => {
+    if (editing) {
+      const t = requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
+      return () => cancelAnimationFrame(t);
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    if (status !== "saved") return;
+    const t = setTimeout(() => setStatus("idle"), 1400);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  const startEdit = (e?: React.MouseEvent | React.PointerEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    if (status === "saving") return;
+    setDraft(value != null ? String(value) : "");
+    setErr("");
+    setStatus("idle");
+    setEditing(true);
+  };
+
+  const cancel = () => {
+    ignoreBlurRef.current = false;
+    setEditing(false);
+    setErr("");
+    setStatus("idle");
+  };
+
+  const commit = async () => {
+    if (savingRef.current) return;
+    const parsed = parseWeight(draft);
+    if (parsed === "invalid") {
+      setErr("Peso inválido (0–400)");
+      setStatus("error");
+      inputRef.current?.focus();
+      return;
+    }
+
+    const same =
+      (parsed === null && value === null) ||
+      (parsed !== null && value !== null && Math.abs(parsed - value) < 0.001);
+    if (same) {
+      setEditing(false);
+      setStatus("idle");
+      return;
+    }
+
+    if (!saveContext.athleteId) {
+      setErr("Sin atleta seleccionado");
+      setStatus("error");
+      return;
+    }
+
+    savingRef.current = true;
+    setStatus("saving");
+    setErr("");
+    try {
+      await saveNutritionEntry(saveContext, { bodyweight: parsed }, date);
+      setEditing(false);
+      setStatus("saved");
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Error al guardar");
+      setStatus("error");
+      inputRef.current?.focus();
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  if (editing) {
+    return (
+      <div
+        className="flex flex-col items-end gap-1 min-w-[108px]"
+        onClick={e => e.stopPropagation()}
+        onPointerDown={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-1">
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min={0}
+            max={400}
+            value={draft}
+            onChange={e => {
+              setDraft(e.target.value);
+              if (status === "error") setStatus("idle");
+            }}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void commit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                cancel();
+              }
+            }}
+            onBlur={() => {
+              if (ignoreBlurRef.current) {
+                ignoreBlurRef.current = false;
+                return;
+              }
+              // Small delay so Guardar/Cancelar mousedown can set ignoreBlurRef
+              window.setTimeout(() => {
+                if (ignoreBlurRef.current || savingRef.current) return;
+                // Don't auto-save empty→null by accident on blur; only save if changed to a number
+                const parsed = parseWeight(draft);
+                if (parsed === "invalid") return;
+                if (parsed === null && value === null) {
+                  cancel();
+                  return;
+                }
+                void commit();
+              }, 120);
+            }}
+            disabled={status === "saving"}
+            aria-label={`Peso del ${fmtDate(date)}`}
+            className="w-[76px] rounded-lg px-2 py-1.5 text-right text-[13px] outline-none"
+            style={{
+              fontFamily: JAKARTA,
+              fontVariantNumeric: "tabular-nums",
+              color: "rgba(255,255,255,0.95)",
+              background: "hsla(0,0%,100%,0.1)",
+              border: `1px solid ${status === "error" ? "hsla(0,80%,70%,0.55)" : "hsla(110,60%,60%,0.45)"}`,
+            }}
+          />
+          <button
+            type="button"
+            title="Guardar"
+            disabled={status === "saving"}
+            onPointerDown={() => { ignoreBlurRef.current = true; }}
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              void commit();
+            }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6ee7a0] hover:bg-white/10 transition-colors disabled:opacity-40"
+            style={{ border: "1px solid hsla(0,0%,100%,0.12)" }}
+          >
+            {status === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            type="button"
+            title="Cancelar"
+            disabled={status === "saving"}
+            onPointerDown={() => { ignoreBlurRef.current = true; }}
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              cancel();
+            }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
+            style={{ border: "1px solid hsla(0,0%,100%,0.12)" }}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {status === "error" && err && (
+          <span className="text-[9px] text-[#fca5a5] max-w-[140px] text-right leading-tight" style={{ fontFamily: JAKARTA }}>
+            {err}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEdit}
+      onPointerDown={e => e.stopPropagation()}
+      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 -mx-1 min-h-[36px] transition-colors hover:bg-white/[0.08] active:bg-white/[0.12]"
+      style={{
+        fontFamily: JAKARTA,
+        fontVariantNumeric: "tabular-nums",
+        fontSize: 13,
+        color: value != null ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.35)",
+        justifyContent: align === "right" ? "flex-end" : "flex-start",
+        width: "100%",
+        textAlign: align,
+        border: "1px solid transparent",
+      }}
+      title="Editar peso"
+      aria-label={`Editar peso del ${fmtDate(date)}`}
+    >
+      <span className="underline decoration-white/20 underline-offset-2">
+        {value != null ? value.toFixed(2) : "—"}
+      </span>
+      {status === "saved" ? (
+        <Check className="w-3.5 h-3.5 text-[#6ee7a0] shrink-0" />
+      ) : (
+        <Pencil className="w-3 h-3 text-white/40 shrink-0" />
+      )}
+    </button>
+  );
+};
+
+export const WeightDataTablesModal = ({ open, rows, onClose, saveContext, onSaved }: Props) => {
   const [tab, setTab] = useState<Tab>("historial");
   const [rangeDays, setRangeDays] = useState(30);
 
@@ -136,7 +373,6 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
             >
               <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(0,0%,100%,0.55), transparent)" }} />
 
-              {/* Header */}
               <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 shrink-0">
                 <div>
                   <p className="text-[11px] font-semibold tracking-[0.18em] text-white/50 uppercase" style={{ fontFamily: JAKARTA }}>
@@ -145,6 +381,9 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
                   <h2 className="text-[22px] font-semibold text-white mt-1 leading-none" style={{ fontFamily: OUTFIT, letterSpacing: "-0.02em" }}>
                     Peso corporal
                   </h2>
+                  <p className="text-[10px] text-white/35 mt-1.5" style={{ fontFamily: JAKARTA }}>
+                    Tocá el lápiz / el número para editar. Guardá con ✓ o Enter · cancelá con ✕ o Esc.
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
@@ -156,7 +395,6 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
                 </button>
               </div>
 
-              {/* Tabs + range */}
               <div className="px-5 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
                 <div className="flex gap-1 p-0.5 rounded-full" style={{ background: "hsla(0,0%,100%,0.06)", border: "1px solid hsla(0,0%,100%,0.1)" }}>
                   {([
@@ -199,15 +437,14 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
 
               {tab === "semanal" && (
                 <p className="px-5 pb-2 text-[10px] text-white/35 shrink-0" style={{ fontFamily: JAKARTA }}>
-                  Δ día = promedio de esta semana (hasta ese día) − promedio de la semana pasada (lun–dom).
+                  Δ día = promedio de esta semana (hasta ese día) − promedio de la semana pasada (lun–dom). En celdas vacías podés cargar un peso nuevo.
                 </p>
               )}
 
-              {/* Tables */}
               <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 pb-5">
                 {tab === "historial" ? (
                   rawRows.length === 0 ? (
-                    <EmptyState text="Sin mediciones de peso en este rango." />
+                    <EmptyState text="Sin mediciones de peso en este rango. Usá la pestaña Semanal para cargar un día vacío." />
                   ) : (
                     <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid hsla(0,0%,100%,0.1)", background: "hsla(0,0%,0%,0.2)" }}>
                       <table className="w-full border-collapse">
@@ -222,7 +459,14 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
                           {rawRows.map(r => (
                             <tr key={r.date}>
                               <td style={tdStyle}>{fmtDate(r.date)}</td>
-                              <td style={{ ...tdStyle, textAlign: "right" }}>{r.bodyweight.toFixed(2)}</td>
+                              <td style={{ ...tdStyle, textAlign: "right", paddingTop: 4, paddingBottom: 4 }}>
+                                <EditableBwCell
+                                  date={r.date}
+                                  value={r.bodyweight}
+                                  saveContext={saveContext}
+                                  onSaved={onSaved}
+                                />
+                              </td>
                               <td style={{ ...tdStyle, textAlign: "right", color: "rgba(110,231,160,0.9)" }}>
                                 {r.ma7 != null ? r.ma7.toFixed(2) : "—"}
                               </td>
@@ -258,8 +502,13 @@ export const WeightDataTablesModal = ({ open, rows, onClose }: Props) => {
                               <tr key={r.date}>
                                 <td style={tdStyle}>{fmtDate(r.date)}</td>
                                 <td style={{ ...tdStyle, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>{r.day}</td>
-                                <td style={{ ...tdStyle, textAlign: "right" }}>
-                                  {r.bodyweight != null ? r.bodyweight.toFixed(2) : "—"}
+                                <td style={{ ...tdStyle, textAlign: "right", paddingTop: 4, paddingBottom: 4 }}>
+                                  <EditableBwCell
+                                    date={r.date}
+                                    value={r.bodyweight}
+                                    saveContext={saveContext}
+                                    onSaved={onSaved}
+                                  />
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right", color: deltaColor(r.deltaDia) }}>
                                   {fmtDelta(r.deltaDia)}
